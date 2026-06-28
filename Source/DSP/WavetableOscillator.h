@@ -300,7 +300,7 @@ public:
             }
         }
         subPhase = 0.0f; pitchEnvState = 1.0f;
-        for (int i = 0; i < MaxVoices; ++i) driftPhase[i] = random.nextFloat();
+        for (int i = 0; i < MaxVoices; ++i) { driftPhase[i] = random.nextFloat(); cachedLvl0[i] = -1; } // ★候補F: -1=ノート開始時に必ず再計算
     }
 
     void getSampleStereo(float& outL, float& outR, float& subL, float& subR) {
@@ -325,24 +325,29 @@ public:
         float fadeWidth = juce::jlimit(0.001f, 0.03f, baseFreq * 0.00001f);
         bool hasMorph = (morphAMode != 0 || morphBMode != 0 || morphCMode != 0);
 
+        bool fmActive = (std::abs(fmAmount) > 1.0e-6f); // ★候補D: FMオフ時はFM変調の計算を丸ごとスキップ(出力は完全一致)
+
         for (int b = 0; b < numBlocks; ++b) {
             SIMDFloat p = phases[b];
-            SIMDFloat modSignal(0.0f);
+            SIMDFloat tp_simd = p;
 
-            for (int i = 0; i < SimdWidth; ++i) {
-                float pVal = p.get(i);
-                float mVal = 0.0f;
-                if (fmWaveform == 0) {
-                    float z = pVal - 0.5f;
-                    mVal = -(z * 6.2831853f - (z * z * z) * 41.341702f + (z * z * z * z * z) * 81.605249f);
+            if (fmActive) {
+                SIMDFloat modSignal(0.0f);
+                for (int i = 0; i < SimdWidth; ++i) {
+                    float pVal = p.get(i);
+                    float mVal = 0.0f;
+                    if (fmWaveform == 0) {
+                        float z = pVal - 0.5f;
+                        mVal = -(z * 6.2831853f - (z * z * z) * 41.341702f + (z * z * z * z * z) * 81.605249f);
+                    }
+                    else if (fmWaveform == 1) { mVal = pVal * 2.0f - 1.0f; }
+                    else if (fmWaveform == 2) { mVal = pVal < 0.5f ? 1.0f : -1.0f; }
+                    else if (fmWaveform == 3) { mVal = 4.0f * std::abs(pVal - 0.5f) - 1.0f; }
+                    modSignal.set(i, mVal);
                 }
-                else if (fmWaveform == 1) { mVal = pVal * 2.0f - 1.0f; }
-                else if (fmWaveform == 2) { mVal = pVal < 0.5f ? 1.0f : -1.0f; }
-                else if (fmWaveform == 3) { mVal = 4.0f * std::abs(pVal - 0.5f) - 1.0f; }
-                modSignal.set(i, mVal);
+                tp_simd = p + modSignal * SIMDFloat(fmAmount * 0.1f);
             }
 
-            SIMDFloat tp_simd = p + modSignal * SIMDFloat(fmAmount * 0.1f);
             SIMDFloat vAmp(0.0f), nextP(0.0f);
 
             if (hasMorph) {
@@ -358,10 +363,14 @@ public:
                           currentDrift[vIdx] = -(dz * 6.2831853f - (dz * dz * dz) * 41.341702f + (dz * dz * dz * dz * dz) * 81.605249f) * driftAmount * 0.01f; }
                     }
                     float step = increments[b].get(i) * dynamicPitchMult * (1.0f + currentDrift[vIdx]);
-                    float maxH = (float)sampleRate / (2.0f * std::max(1.0f, step * (float)sampleRate));
-                    int lvl0 = 0; float hL = 1024.0f;
-                    while (lvl0 < NumLevels - 2 && (hL * 0.5f) > maxH) { lvl0++; hL *= 0.5f; }
-                    float lvlFrac = (hL > maxH) ? juce::jlimit(0.0f, 1.0f, (hL - maxH) / (hL * 0.5f)) : 0.0f;
+                    int lvl0 = cachedLvl0[vIdx]; float lvlFrac = cachedLvlFrac[vIdx];
+                    if ((sampleCounter & 7) == 0 || lvl0 < 0) { // ★候補F: 8サンプルに1回だけ帯域制限レベルを再選択
+                        float maxH = (float)sampleRate / (2.0f * std::max(1.0f, step * (float)sampleRate));
+                        lvl0 = 0; float hL = 1024.0f;
+                        while (lvl0 < NumLevels - 2 && (hL * 0.5f) > maxH) { lvl0++; hL *= 0.5f; }
+                        lvlFrac = (hL > maxH) ? juce::jlimit(0.0f, 1.0f, (hL - maxH) / (hL * 0.5f)) : 0.0f;
+                        cachedLvl0[vIdx] = lvl0; cachedLvlFrac[vIdx] = lvlFrac;
+                    }
 
                     float tp = tp_simd.get(i);
                     tp -= std::floor(tp);
@@ -375,10 +384,17 @@ public:
                     if (!std::isfinite(tp)) tp = 0.0f;
 
                     float fPos = tp * set->frameSize; int pos = (int)fPos; float frac = fPos - (float)pos;
-                    auto* p0 = set->levels[lvl0].getReadPointer(0); auto* p1 = set->levels[lvl0 + 1].getReadPointer(0);
-                    float v0 = getHermiteSample(p0, f0_base, set->frameSize, pos, frac) * (1.0f - frameFrac) + getHermiteSample(p0, f1_base, set->frameSize, pos, frac) * frameFrac;
-                    float v1 = getHermiteSample(p1, f0_base, set->frameSize, pos, frac) * (1.0f - frameFrac) + getHermiteSample(p1, f1_base, set->frameSize, pos, frac) * frameFrac;
-                    float val = (v0 * (1.0f - lvlFrac) + v1 * lvlFrac) * (sA * sB * sC);
+                    auto* p0 = set->levels[lvl0].getReadPointer(0);
+                    float v0 = sampleLevel(p0, f0_base, f1_base, set->frameSize, pos, frac, frameFrac);
+                    float val;
+                    if (lvlFrac > 0.0f) { // ★候補E: 第2ミップレベルは必要なときだけ補間(lvlFrac==0なら結果一致)
+                        auto* p1 = set->levels[lvl0 + 1].getReadPointer(0);
+                        float v1 = sampleLevel(p1, f0_base, f1_base, set->frameSize, pos, frac, frameFrac);
+                        val = v0 * (1.0f - lvlFrac) + v1 * lvlFrac;
+                    } else {
+                        val = v0;
+                    }
+                    val *= (sA * sB * sC);
 
                     val = applyAmpWarp(val, morphAMode, warpA, originalPhase);
                     val = applyAmpWarp(val, morphBMode, warpB, originalPhase);
@@ -401,20 +417,30 @@ public:
                           currentDrift[vIdx] = -(dz * 6.2831853f - (dz * dz * dz) * 41.341702f + (dz * dz * dz * dz * dz) * 81.605249f) * driftAmount * 0.01f; }
                     }
                     float step = increments[b].get(i) * dynamicPitchMult * (1.0f + currentDrift[vIdx]);
-                    float maxH = (float)sampleRate / (2.0f * std::max(1.0f, step * (float)sampleRate));
-                    int lvl0 = 0; float hL = 1024.0f;
-                    while (lvl0 < NumLevels - 2 && (hL * 0.5f) > maxH) { lvl0++; hL *= 0.5f; }
-                    float lvlFrac = (hL > maxH) ? juce::jlimit(0.0f, 1.0f, (hL - maxH) / (hL * 0.5f)) : 0.0f;
+                    int lvl0 = cachedLvl0[vIdx]; float lvlFrac = cachedLvlFrac[vIdx];
+                    if ((sampleCounter & 7) == 0 || lvl0 < 0) { // ★候補F: 8サンプルに1回だけ帯域制限レベルを再選択
+                        float maxH = (float)sampleRate / (2.0f * std::max(1.0f, step * (float)sampleRate));
+                        lvl0 = 0; float hL = 1024.0f;
+                        while (lvl0 < NumLevels - 2 && (hL * 0.5f) > maxH) { lvl0++; hL *= 0.5f; }
+                        lvlFrac = (hL > maxH) ? juce::jlimit(0.0f, 1.0f, (hL - maxH) / (hL * 0.5f)) : 0.0f;
+                        cachedLvl0[vIdx] = lvl0; cachedLvlFrac[vIdx] = lvlFrac;
+                    }
 
                     float tp = tp_simd.get(i);
                     tp -= std::floor(tp);
                     if (!std::isfinite(tp)) tp = 0.0f;
 
                     float fPos = tp * set->frameSize; int pos = (int)fPos; float frac = fPos - (float)pos;
-                    auto* p0 = set->levels[lvl0].getReadPointer(0); auto* p1 = set->levels[lvl0 + 1].getReadPointer(0);
-                    float v0 = getHermiteSample(p0, f0_base, set->frameSize, pos, frac) * (1.0f - frameFrac) + getHermiteSample(p0, f1_base, set->frameSize, pos, frac) * frameFrac;
-                    float v1 = getHermiteSample(p1, f0_base, set->frameSize, pos, frac) * (1.0f - frameFrac) + getHermiteSample(p1, f1_base, set->frameSize, pos, frac) * frameFrac;
-                    float val = v0 * (1.0f - lvlFrac) + v1 * lvlFrac;
+                    auto* p0 = set->levels[lvl0].getReadPointer(0);
+                    float v0 = sampleLevel(p0, f0_base, f1_base, set->frameSize, pos, frac, frameFrac);
+                    float val;
+                    if (lvlFrac > 0.0f) { // ★候補E: 第2ミップレベルは必要なときだけ補間(lvlFrac==0なら結果一致)
+                        auto* p1 = set->levels[lvl0 + 1].getReadPointer(0);
+                        float v1 = sampleLevel(p1, f0_base, f1_base, set->frameSize, pos, frac, frameFrac);
+                        val = v0 * (1.0f - lvlFrac) + v1 * lvlFrac;
+                    } else {
+                        val = v0;
+                    }
 
                     vAmp.set(i, oscOn ? val * amp[b].get(i) : 0.0f);
                     float pNext = p.get(i) + step;
@@ -468,6 +494,9 @@ private:
     int subWaveform = 0; float subVolume = 0.0f, subPitchOffset = -12.0f, subPhase = 0.0f, subLpfState = 0.0f;
     std::array<float, MaxVoices> driftPhase = { 0 }, driftRate = { 0 };
     std::array<float, MaxVoices> currentDrift = { 0 };
+    // ★候補F: 帯域制限レベル選択(除算+whileループ)の結果をボイス毎にキャッシュし、毎サンプルではなく間引いて更新
+    std::array<int, MaxVoices> cachedLvl0 = { 0 };
+    std::array<float, MaxVoices> cachedLvlFrac = { 0 };
     int sampleCounter = 0;
     struct WarpPrecomputed {
         float bend_b = 1.0f;
@@ -635,6 +664,14 @@ private:
         int p2 = (pos + 1) & mask;
         int p3 = (pos + 2) & mask;
         return hermite(t, ptr[bOff + static_cast<size_t>(p0)], ptr[bOff + static_cast<size_t>(p1)], ptr[bOff + static_cast<size_t>(p2)], ptr[bOff + static_cast<size_t>(p3)]);
+    }
+
+    // ★候補E: フレーム補間。frameFrac==0 のときは第2フレームのHermite補間を省略（結果はビット一致）
+    inline float sampleLevel(const float* pL, size_t f0, size_t f1, int fs, int pos, float frac, float frameFrac) const {
+        float a = getHermiteSample(pL, f0, fs, pos, frac);
+        if (frameFrac <= 0.0f) return a;
+        float bb = getHermiteSample(pL, f1, fs, pos, frac);
+        return a * (1.0f - frameFrac) + bb * frameFrac;
     }
 
     void recalculate() {
