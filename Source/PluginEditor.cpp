@@ -1158,25 +1158,27 @@ void LiquidDreamAudioProcessorEditor::resized()
 
         auto ctrlRect = leftArea;
         controlGroup.setBounds(ctrlRect);
-
         int cX = ctrlRect.getX() + 10;
         int r1Y = ctrlRect.getY() + 15;
-        int r2Y = r1Y + 70;
-        int r3Y = r2Y + 70;
+        int r2Y = r1Y + 80;
+        int r3Y = r2Y + 80;
 
-        legatoButton.setBounds(cX, r1Y + 20, 65, 24);
-        placeKnob(cX + 80, r1Y, glideLabel, glideSlider);
-        placeKnob(cX + 160, r1Y, pitchLabel, pitchSlider);
-        placeKnob(cX + 240, r1Y, gainLabel, gainSlider);
+        // 1段目: Sub
+        subOnButton.setBounds(cX, r1Y + 20, 65, 24);
+        subWaveCombo.setBounds(cX + 75, r1Y + 20, 70, 24);
+        placeKnob(cX + 155, r1Y, subVolLabel, subVolSlider);
+        placeKnob(cX + 235, r1Y, subPitchLabel, subPitchSlider);
 
-        subOnButton.setBounds(cX, r2Y + 20, 65, 24);
-        subWaveCombo.setBounds(cX + 80, r2Y + 20, 70, 24);
-        placeKnob(cX + 160, r2Y, subVolLabel, subVolSlider);
-        placeKnob(cX + 240, r2Y, subPitchLabel, subPitchSlider);
+        // 2段目: Gain, Pitch, Poly
+        placeKnob(cX + 15, r2Y, gainLabel, gainSlider);
+        placeKnob(cX + 115, r2Y, pitchLabel, pitchSlider);
+        placeKnob(cX + 215, r2Y, maxVoicesLabel, maxVoicesSlider);
 
-        limitOnButton.setBounds(cX, r3Y + 20, 65, 24);
-        placeKnob(cX + 80, r3Y, maxVoicesLabel, maxVoicesSlider);
-        placeKnob(cX + 240, r3Y, limitCeilLabel, limitCeilSlider);
+        // 3段目: Legato, Glide, Limit, Ceiling
+        legatoButton.setBounds(cX, r3Y + 20, 65, 24);
+        placeKnob(cX + 75, r3Y, glideLabel, glideSlider);
+        limitOnButton.setBounds(cX + 155, r3Y + 20, 65, 24);
+        placeKnob(cX + 230, r3Y, limitCeilLabel, limitCeilSlider);
     }
 
     area.removeFromLeft(15); auto rightArea = area; browser.setBounds(rightArea);

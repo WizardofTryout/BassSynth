@@ -156,6 +156,34 @@ public:
                 currentFrequency = targetFrequency;
                 oscillator.resetPhase();
             }
+
+            // 新規ノートオン時はパラメータのスムージングを現在のターゲット値に瞬時ジャンプさせ、アタックの遅れを防ぐ
+            smoothedWtLevel.setCurrentAndTargetValue(p.pOscLevel->load(std::memory_order_relaxed));
+            smoothedWtPitch.setCurrentAndTargetValue(p.pOscPitch->load(std::memory_order_relaxed));
+            smoothedPDecayAmt.setCurrentAndTargetValue(p.pPDecayAmt->load(std::memory_order_relaxed));
+            smoothedPDecayTime.setCurrentAndTargetValue(p.pPDecayTime->load(std::memory_order_relaxed));
+            smoothedFltACutoff.setCurrentAndTargetValue(p.pFltACutoff->load(std::memory_order_relaxed));
+            smoothedFltAReso.setCurrentAndTargetValue(p.pFltAReso->load(std::memory_order_relaxed));
+            smoothedFltBCutoff.setCurrentAndTargetValue(p.pFltBCutoff->load(std::memory_order_relaxed));
+            smoothedFltBReso.setCurrentAndTargetValue(p.pFltBReso->load(std::memory_order_relaxed));
+            smoothedFltMix.setCurrentAndTargetValue(p.pFltMix->load(std::memory_order_relaxed));
+            smoothedWtPos.setCurrentAndTargetValue(p.pPos->load(std::memory_order_relaxed));
+            smoothedFm.setCurrentAndTargetValue(p.pFm->load(std::memory_order_relaxed));
+            smoothedDrift.setCurrentAndTargetValue(p.pDrift->load(std::memory_order_relaxed));
+            smoothedSubVol.setCurrentAndTargetValue(p.pSubVol->load(std::memory_order_relaxed));
+            smoothedMorphAAmt.setCurrentAndTargetValue(p.pMorphAAmt->load(std::memory_order_relaxed));
+            smoothedMorphAShift.setCurrentAndTargetValue(p.pMorphAShift->load(std::memory_order_relaxed));
+            smoothedMorphBAmt.setCurrentAndTargetValue(p.pMorphBAmt->load(std::memory_order_relaxed));
+            smoothedMorphBShift.setCurrentAndTargetValue(p.pMorphBShift->load(std::memory_order_relaxed));
+            smoothedMorphCAmt.setCurrentAndTargetValue(p.pMorphCAmt->load(std::memory_order_relaxed));
+            smoothedMorphCShift.setCurrentAndTargetValue(p.pMorphCShift->load(std::memory_order_relaxed));
+            smoothedDrive.setCurrentAndTargetValue(p.pDrive->load(std::memory_order_relaxed));
+            smoothedShpAmt.setCurrentAndTargetValue(p.pShpAmt->load(std::memory_order_relaxed));
+            smoothedShpRate.setCurrentAndTargetValue(p.pShpRate->load(std::memory_order_relaxed));
+            smoothedShpBit.setCurrentAndTargetValue(p.pShpBit->load(std::memory_order_relaxed));
+            for (int i = 0; i < 3; ++i) {
+                smoothedLfoRates[i].setCurrentAndTargetValue(p.pLfoRate[i]->load(std::memory_order_relaxed));
+            }
         }
 
         ampEnv.noteOn(isLegato);

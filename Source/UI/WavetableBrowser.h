@@ -22,6 +22,12 @@ public:
         // デフォルトでユーザーが提示したGrowlベースの数式を設定
         formulaEditor.setText("((sin((x*6.28+sin((x*6.28))*(2*y)*8)))*sin((x*6.28+sin((x*6.28))*(2*y)*8)*(1+(2*y)*10)))*max(sgn(abs(((sin((x*6.28+sin((x*6.28))*(2*y)*8)))*sin((x*6.28+sin((x*6.28))*(2*y)*8)*(1+(2*y)*10))))-(.34*y)*.5),0)");
 
+        addAndMakeVisible(webLinkBtn);
+        webLinkBtn.setColour(juce::TextButton::buttonColourId, juce::Colour::fromString("FF336699"));
+        webLinkBtn.onClick = [] {
+            juce::URL("https://otodesk4193.github.io/wavetable-generator/").launchInDefaultBrowser();
+        };
+
         addAndMakeVisible(generateBtn);
         generateBtn.setColour(juce::TextButton::buttonColourId, juce::Colour::fromString("FF008080"));
         generateBtn.onClick = [this] { generateWavetable(); };
@@ -40,8 +46,11 @@ public:
     void resized() override
     {
         auto area = getLocalBounds().reduced(10);
-        formulaEditor.setBounds(area.removeFromTop(area.getHeight() - 110));
+        formulaEditor.setBounds(area.removeFromTop(area.getHeight() - 144));
         
+        area.removeFromTop(10);
+        webLinkBtn.setBounds(area.removeFromTop(24));
+
         area.removeFromTop(10);
         statusLabel.setBounds(area.removeFromTop(24));
         
@@ -191,6 +200,7 @@ private:
     juce::TextEditor formulaEditor;
     juce::TextButton generateBtn{ "Generate & Preview" };
     juce::TextButton saveBtn{ "Save as WAV..." };
+    juce::TextButton webLinkBtn{ "Open Online Generator..." };
     juce::Label statusLabel;
     juce::File tempFile;
     std::unique_ptr<juce::FileChooser> chooser;
