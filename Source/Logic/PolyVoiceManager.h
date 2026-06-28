@@ -27,14 +27,20 @@ public:
     }
 
     void loadFactoryWavetable(int index) {
-        for (auto& voice : voices) {
-            voice.loadFactoryWavetable(index);
+        if (voices.size() == 0) return;
+        voices[0].loadFactoryWavetable(index);
+        auto sharedSet = voices[0].getWavetableSet();
+        for (size_t i = 1; i < voices.size(); ++i) {
+            voices[i].setWavetableSet(sharedSet);
         }
     }
 
     void loadCustomWavetable(const juce::File& file) {
-        for (auto& voice : voices) {
-            voice.loadCustomWavetable(file);
+        if (voices.size() == 0) return;
+        voices[0].loadCustomWavetable(file);
+        auto sharedSet = voices[0].getWavetableSet();
+        for (size_t i = 1; i < voices.size(); ++i) {
+            voices[i].setWavetableSet(sharedSet);
         }
     }
 
@@ -102,6 +108,8 @@ public:
     void setUIParams(float pos, float fmAmt, int fmWave) {
         voices[0].setUIParams(pos, fmAmt, fmWave);
     }
+
+    float getLastModPos() const { return voices[0].getLastModPos(); }
 
     Mseg& getMsegEngine(int index) {
         return voices[0].getMsegEngine(index);

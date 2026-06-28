@@ -184,6 +184,10 @@ public:
         oscillator.setFMWaveform(fmWave);
     }
 
+    float getLastModPos() const { return oscillator.getWavetablePosition(); }
+    WavetableOscillator::WavetableSet::Ptr getWavetableSet() const { return oscillator.getWavetableSet(); }
+    void setWavetableSet(WavetableOscillator::WavetableSet::Ptr newSet) { oscillator.setWavetableSet(newSet); }
+
     bool getIsActive() const { return isActive; }
     int getNoteNumber() const { return currentNoteNumber; }
     uint32_t getOnTime() const { return onTime; }

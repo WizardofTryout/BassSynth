@@ -244,6 +244,9 @@ public:
     void setUnisonDetune(float d) { detuneAmount = d; recalculate(); }
     void setStereoWidth(float w) { stereoWidth = juce::jlimit(0.0f, 1.0f, w); recalculate(); }
     void setWavetablePosition(float pos) { wtPosition = pos; }
+    float getWavetablePosition() const { return wtPosition; }
+    WavetableSet::Ptr getWavetableSet() const { return currentWavetableSet; }
+    void setWavetableSet(WavetableSet::Ptr newSet) { currentWavetableSet = newSet; }
     void setFMAmount(float amt) { fmAmount = amt; }
     void setFMWaveform(int shape) { fmWaveform = juce::jlimit(0, 3, shape); }
     void setDriftAmount(float amt) { driftAmount = amt; }
@@ -279,6 +282,7 @@ public:
     }
 
     void getSampleStereo(float& outL, float& outR, float& subL, float& subR) {
+        sampleCounter++;
         outL = 0.0f; outR = 0.0f; subL = 0.0f; subR = 0.0f;
         WavetableSet::Ptr set = currentWavetableSet.get();
         if (set == nullptr || set->totalSamples == 0) return;
@@ -295,6 +299,8 @@ public:
 
         SIMDFloat outL_simd(0.0f), outR_simd(0.0f);
         int numBlocks = (unisonCount + SimdWidth - 1) / SimdWidth;
+
+        bool hasMorph = (morphAMode != 0 || morphBMode != 0 || morphCMode != 0);
 
         for (int b = 0; b < numBlocks; ++b) {
             SIMDFloat p = phases[b];
@@ -316,45 +322,80 @@ public:
             SIMDFloat tp_simd = p + modSignal * SIMDFloat(fmAmount * 0.1f);
             SIMDFloat vAmp(0.0f), nextP(0.0f);
 
-            for (int i = 0; i < SimdWidth; ++i) {
-                int vIdx = b * SimdWidth + i;
-                if (vIdx >= unisonCount) { nextP.set(i, p.get(i)); continue; }
+            if (hasMorph) {
+                for (int i = 0; i < SimdWidth; ++i) {
+                    int vIdx = b * SimdWidth + i;
+                    if (vIdx >= unisonCount) { nextP.set(i, p.get(i)); continue; }
 
-                float originalPhase = p.get(i);
-                driftPhase[vIdx] += driftRate[vIdx] / (float)sampleRate;
-                if (driftPhase[vIdx] >= 1.0f) driftPhase[vIdx] -= 1.0f;
-                float drift = std::sin(driftPhase[vIdx] * juce::MathConstants<float>::twoPi) * driftAmount * 0.01f;
-                float step = increments[b].get(i) * dynamicPitchMult * (1.0f + drift);
-                float maxH = (float)sampleRate / (2.0f * std::max(1.0f, step * (float)sampleRate));
-                int lvl0 = 0; float hL = 1024.0f;
-                while (lvl0 < NumLevels - 2 && (hL * 0.5f) > maxH) { lvl0++; hL *= 0.5f; }
-                float lvlFrac = (hL > maxH) ? juce::jlimit(0.0f, 1.0f, (hL - maxH) / (hL * 0.5f)) : 0.0f;
+                    float originalPhase = p.get(i);
+                    if ((sampleCounter & 31) == 0) {
+                        driftPhase[vIdx] += (driftRate[vIdx] / (float)sampleRate) * 32.0f;
+                        if (driftPhase[vIdx] >= 1.0f) driftPhase[vIdx] -= std::floor(driftPhase[vIdx]);
+                        currentDrift[vIdx] = std::sin(driftPhase[vIdx] * 6.2831853f) * driftAmount * 0.01f;
+                    }
+                    float step = increments[b].get(i) * dynamicPitchMult * (1.0f + currentDrift[vIdx]);
+                    float maxH = (float)sampleRate / (2.0f * std::max(1.0f, step * (float)sampleRate));
+                    int lvl0 = 0; float hL = 1024.0f;
+                    while (lvl0 < NumLevels - 2 && (hL * 0.5f) > maxH) { lvl0++; hL *= 0.5f; }
+                    float lvlFrac = (hL > maxH) ? juce::jlimit(0.0f, 1.0f, (hL - maxH) / (hL * 0.5f)) : 0.0f;
 
-                float tp = tp_simd.get(i);
-                tp -= std::floor(tp);
+                    float tp = tp_simd.get(i);
+                    tp -= std::floor(tp);
 
-                float sA = 1.0f, sB = 1.0f, sC = 1.0f;
-                tp = applyPhaseWarp(tp, morphAMode, morphAAmount, morphAShift, sA, originalPhase);
-                tp = applyPhaseWarp(tp, morphBMode, morphBAmount, morphBShift, sB, originalPhase);
-                tp = applyPhaseWarp(tp, morphCMode, morphCAmount, morphCShift, sC, originalPhase);
+                    float sA = 1.0f, sB = 1.0f, sC = 1.0f;
+                    tp = applyPhaseWarp(tp, morphAMode, morphAAmount, morphAShift, sA, originalPhase);
+                    tp = applyPhaseWarp(tp, morphBMode, morphBAmount, morphBShift, sB, originalPhase);
+                    tp = applyPhaseWarp(tp, morphCMode, morphCAmount, morphCShift, sC, originalPhase);
 
-                tp -= std::floor(tp);
-                if (!std::isfinite(tp)) tp = 0.0f;
+                    tp -= std::floor(tp);
+                    if (!std::isfinite(tp)) tp = 0.0f;
 
-                float fPos = tp * set->frameSize; int pos = (int)fPos; float frac = fPos - (float)pos;
-                auto* p0 = set->levels[lvl0].getReadPointer(0); auto* p1 = set->levels[lvl0 + 1].getReadPointer(0);
-                float v0 = getHermiteSample(p0, f0_base, set->frameSize, pos, frac) * (1.0f - frameFrac) + getHermiteSample(p0, f1_base, set->frameSize, pos, frac) * frameFrac;
-                float v1 = getHermiteSample(p1, f0_base, set->frameSize, pos, frac) * (1.0f - frameFrac) + getHermiteSample(p1, f1_base, set->frameSize, pos, frac) * frameFrac;
-                float val = (v0 * (1.0f - lvlFrac) + v1 * lvlFrac) * (sA * sB * sC);
+                    float fPos = tp * set->frameSize; int pos = (int)fPos; float frac = fPos - (float)pos;
+                    auto* p0 = set->levels[lvl0].getReadPointer(0); auto* p1 = set->levels[lvl0 + 1].getReadPointer(0);
+                    float v0 = getHermiteSample(p0, f0_base, set->frameSize, pos, frac) * (1.0f - frameFrac) + getHermiteSample(p0, f1_base, set->frameSize, pos, frac) * frameFrac;
+                    float v1 = getHermiteSample(p1, f0_base, set->frameSize, pos, frac) * (1.0f - frameFrac) + getHermiteSample(p1, f1_base, set->frameSize, pos, frac) * frameFrac;
+                    float val = (v0 * (1.0f - lvlFrac) + v1 * lvlFrac) * (sA * sB * sC);
 
-                val = applyAmpWarp(val, morphAMode, morphAAmount, morphAShift, originalPhase);
-                val = applyAmpWarp(val, morphBMode, morphBAmount, morphBShift, originalPhase);
-                val = applyAmpWarp(val, morphCMode, morphCAmount, morphCShift, originalPhase);
+                    val = applyAmpWarp(val, morphAMode, morphAAmount, morphAShift, originalPhase);
+                    val = applyAmpWarp(val, morphBMode, morphBAmount, morphBShift, originalPhase);
+                    val = applyAmpWarp(val, morphCMode, morphCAmount, morphCShift, originalPhase);
 
-                vAmp.set(i, oscOn ? val * amp[b].get(i) : 0.0f);
-                float pNext = p.get(i) + step;
-                pNext -= std::floor(pNext);
-                nextP.set(i, pNext);
+                    vAmp.set(i, oscOn ? val * amp[b].get(i) : 0.0f);
+                    float pNext = p.get(i) + step;
+                    pNext -= std::floor(pNext);
+                    nextP.set(i, pNext);
+                }
+            } else {
+                for (int i = 0; i < SimdWidth; ++i) {
+                    int vIdx = b * SimdWidth + i;
+                    if (vIdx >= unisonCount) { nextP.set(i, p.get(i)); continue; }
+
+                    if ((sampleCounter & 31) == 0) {
+                        driftPhase[vIdx] += (driftRate[vIdx] / (float)sampleRate) * 32.0f;
+                        if (driftPhase[vIdx] >= 1.0f) driftPhase[vIdx] -= std::floor(driftPhase[vIdx]);
+                        currentDrift[vIdx] = std::sin(driftPhase[vIdx] * 6.2831853f) * driftAmount * 0.01f;
+                    }
+                    float step = increments[b].get(i) * dynamicPitchMult * (1.0f + currentDrift[vIdx]);
+                    float maxH = (float)sampleRate / (2.0f * std::max(1.0f, step * (float)sampleRate));
+                    int lvl0 = 0; float hL = 1024.0f;
+                    while (lvl0 < NumLevels - 2 && (hL * 0.5f) > maxH) { lvl0++; hL *= 0.5f; }
+                    float lvlFrac = (hL > maxH) ? juce::jlimit(0.0f, 1.0f, (hL - maxH) / (hL * 0.5f)) : 0.0f;
+
+                    float tp = tp_simd.get(i);
+                    tp -= std::floor(tp);
+                    if (!std::isfinite(tp)) tp = 0.0f;
+
+                    float fPos = tp * set->frameSize; int pos = (int)fPos; float frac = fPos - (float)pos;
+                    auto* p0 = set->levels[lvl0].getReadPointer(0); auto* p1 = set->levels[lvl0 + 1].getReadPointer(0);
+                    float v0 = getHermiteSample(p0, f0_base, set->frameSize, pos, frac) * (1.0f - frameFrac) + getHermiteSample(p0, f1_base, set->frameSize, pos, frac) * frameFrac;
+                    float v1 = getHermiteSample(p1, f0_base, set->frameSize, pos, frac) * (1.0f - frameFrac) + getHermiteSample(p1, f1_base, set->frameSize, pos, frac) * frameFrac;
+                    float val = v0 * (1.0f - lvlFrac) + v1 * lvlFrac;
+
+                    vAmp.set(i, oscOn ? val * amp[b].get(i) : 0.0f);
+                    float pNext = p.get(i) + step;
+                    pNext -= std::floor(pNext);
+                    nextP.set(i, pNext);
+                }
             }
             outL_simd += vAmp * panL[b]; outR_simd += vAmp * panR[b]; phases[b] = nextP;
         }
@@ -388,6 +429,8 @@ private:
     float wtLevel = 1.0f, wtPitchOffset = 0.0f, pitchDecayAmt = 0.0f, pitchDecayCoef = 0.0f, pitchEnvState = 0.0f;
     int subWaveform = 0; float subVolume = 0.0f, subPitchOffset = -12.0f, subPhase = 0.0f, subLpfState = 0.0f;
     std::array<float, MaxVoices> driftPhase = { 0 }, driftRate = { 0 };
+    std::array<float, MaxVoices> currentDrift = { 0 };
+    int sampleCounter = 0;
     juce::AudioFormatManager formatManager;
 
     juce::ThreadPool backgroundPool{ 1 }; // ★ 修正: 共有プールから各インスタンス専用スレッドに変更
@@ -470,10 +513,11 @@ private:
     }
 
     inline float getHermiteSample(const float* ptr, size_t bOff, int fs, int pos, float t) const {
-        int p0 = ((pos - 1) % fs + fs) % fs;
-        int p1 = (pos % fs + fs) % fs;
-        int p2 = ((pos + 1) % fs + fs) % fs;
-        int p3 = ((pos + 2) % fs + fs) % fs;
+        int mask = fs - 1;
+        int p0 = (pos - 1) & mask;
+        int p1 = pos & mask;
+        int p2 = (pos + 1) & mask;
+        int p3 = (pos + 2) & mask;
         return hermite(t, ptr[bOff + static_cast<size_t>(p0)], ptr[bOff + static_cast<size_t>(p1)], ptr[bOff + static_cast<size_t>(p2)], ptr[bOff + static_cast<size_t>(p3)]);
     }
 

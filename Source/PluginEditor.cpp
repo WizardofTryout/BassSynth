@@ -951,7 +951,8 @@ void LiquidDreamAudioProcessorEditor::timerCallback() {
         }
     }
 
-    if (wtChanged || isModulated) {
+    // 常に60Hzで波形表示を更新し、LFOやMSEGなどのモジュレーションアニメーションの遅延を完全に排除します
+    if (true) {
         std::array<float, 512> tempBuffer;
         audioProcessor.getStaticWaveform(tempBuffer);
         dualScope.updateStaticWave(tempBuffer.data(), 512);
