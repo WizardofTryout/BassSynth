@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Source/PluginEditor.h
 // ==============================================================================
 #pragma once
@@ -75,6 +75,7 @@ private:
         juce::ToggleButton onBtn{ "ON" };
         juce::ComboBox wave, beat, trig;
         juce::ToggleButton sync{ "SYNC" };
+        juce::ToggleButton uniBtn{ "UNI" };
         juce::Slider rate, amt;
         juce::Label waveLbl, beatLbl, trigLbl, rateLbl, amtLbl;
     };
@@ -121,6 +122,7 @@ private:
         juce::ToggleButton onBtn{ "ON" };
         juce::ComboBox beat, trig;
         juce::ToggleButton sync{ "SYNC" };
+        juce::ToggleButton uniBtn{ "UNI" };
         juce::Slider rate, amt;
         juce::Label beatLbl, trigLbl, rateLbl, amtLbl;
         std::unique_ptr<MsegEditorComponent> editor;
@@ -140,6 +142,7 @@ private:
     juce::AudioProcessorValueTreeState& apvts;
     struct EnvUI {
         juce::ToggleButton onBtn{ "ON" };
+        juce::ToggleButton bipBtn{ "BIP" };
         juce::Slider a, d, s, r, amt;
         juce::Label aL, dL, sL, rL, amtL;
     };

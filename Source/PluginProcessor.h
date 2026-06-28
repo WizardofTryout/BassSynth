@@ -160,8 +160,11 @@ private:
     std::atomic<float>* pLimitCeil = nullptr;
 
     std::array<std::atomic<float>*, 3> pModOn, pModAtk, pModDec, pModSus, pModRel, pModAmt;
+    std::array<std::atomic<float>*, 3> pModBipolar;
     std::array<std::atomic<float>*, 3> pLfoOn, pLfoWave, pLfoSync, pLfoRate, pLfoBeat, pLfoAmt, pLfoTrig;
+    std::array<std::atomic<float>*, 3> pLfoUnipolar;
     std::array<std::atomic<float>*, 2> pMsegOn, pMsegSync, pMsegRate, pMsegBeat, pMsegAmt, pMsegTrig;
+    std::array<std::atomic<float>*, 2> pMsegUnipolar;
 
     std::array<std::atomic<float>*, 10> pMatrixSrc;
     std::array<std::atomic<float>*, 10> pMatrixDest;

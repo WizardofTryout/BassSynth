@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Source/PluginEditor.cpp
 // ==============================================================================
 #include "PluginProcessor.h"
@@ -164,6 +164,7 @@ MsegTab::MsegTab(LiquidDreamAudioProcessor& p, juce::AudioProcessorValueTreeStat
         setupS(msegs[i].rate, msegs[i].rateLbl, "Rate(Hz)", this);
         setupS(msegs[i].amt, msegs[i].amtLbl, "Amount", this);
         addAndMakeVisible(msegs[i].sync);
+        addAndMakeVisible(msegs[i].uniBtn);
 
         msegs[i].editor = std::make_unique<MsegEditorComponent>(processor.getMsegEngine(i), processor.msegStates[i]);
         addAndMakeVisible(*msegs[i].editor);
@@ -175,6 +176,7 @@ MsegTab::MsegTab(LiquidDreamAudioProcessor& p, juce::AudioProcessorValueTreeStat
         sliderAtts.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, pfx + "rate", msegs[i].rate));
         sliderAtts.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, pfx + "amt", msegs[i].amt));
         btnAtts.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, pfx + "sync", msegs[i].sync));
+        btnAtts.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, pfx + "unipolar", msegs[i].uniBtn));
     }
 }
 
@@ -202,6 +204,7 @@ void MsegTab::resized() {
         msegs[i].trigLbl.setBounds(290, boxY + 65, 85, 15);
         msegs[i].trig.setBounds(290, boxY + 80, 85, 22);
         msegs[i].sync.setBounds(290, boxY + 110, 55, 22);
+        msegs[i].uniBtn.setBounds(350, boxY + 110, 55, 22);
         msegs[i].beatLbl.setBounds(290, boxY + 135, 85, 15);
         msegs[i].beat.setBounds(290, boxY + 150, 85, 22);
         placeKnob(400, boxY + 35, msegs[i].rateLbl, msegs[i].rate);
@@ -225,6 +228,7 @@ LfoTab::LfoTab(juce::AudioProcessorValueTreeState& vts) : apvts(vts) {
         setupS(lfos[i].rate, lfos[i].rateLbl, "Rate(Hz)", this);
         setupS(lfos[i].amt, lfos[i].amtLbl, "Amount", this);
         addAndMakeVisible(lfos[i].sync);
+        addAndMakeVisible(lfos[i].uniBtn);
 
         juce::String pfx = "lfo" + juce::String(i + 1) + "_";
         btnAtts.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, pfx + "on", lfos[i].onBtn));
@@ -234,6 +238,7 @@ LfoTab::LfoTab(juce::AudioProcessorValueTreeState& vts) : apvts(vts) {
         sliderAtts.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, pfx + "rate", lfos[i].rate));
         sliderAtts.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, pfx + "amt", lfos[i].amt));
         btnAtts.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, pfx + "sync", lfos[i].sync));
+        btnAtts.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, pfx + "unipolar", lfos[i].uniBtn));
     }
 }
 
@@ -255,6 +260,7 @@ void LfoTab::resized() {
         lfos[i].waveLbl.setBounds(75, boxY + 10, 65, 16);  lfos[i].wave.setBounds(75, boxY + 26, 65, 22);
         lfos[i].trigLbl.setBounds(75, boxY + 54, 65, 16);  lfos[i].trig.setBounds(75, boxY + 70, 65, 22);
         lfos[i].sync.setBounds(155, boxY + 45, 50, 24);
+        lfos[i].uniBtn.setBounds(155, boxY + 70, 50, 24);
         placeKnob(220, boxY + 22, lfos[i].rateLbl, lfos[i].rate);
         lfos[i].beatLbl.setBounds(305, boxY + 30, 65, 20); lfos[i].beat.setBounds(305, boxY + 50, 65, 24);
         placeKnob(385, boxY + 22, lfos[i].amtLbl, lfos[i].amt);
@@ -270,6 +276,7 @@ ModEnvTab::ModEnvTab(juce::AudioProcessorValueTreeState& vts) : apvts(vts) {
         setupS(envs[i].a, envs[i].aL, "A", this); setupS(envs[i].d, envs[i].dL, "D", this);
         setupS(envs[i].s, envs[i].sL, "S", this); setupS(envs[i].r, envs[i].rL, "R", this);
         setupS(envs[i].amt, envs[i].amtL, "Amount", this);
+        addAndMakeVisible(envs[i].bipBtn);
 
         juce::String pfx = "mod" + juce::String(i + 1) + "_";
         btnAtts.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, pfx + "on", envs[i].onBtn));
@@ -278,6 +285,7 @@ ModEnvTab::ModEnvTab(juce::AudioProcessorValueTreeState& vts) : apvts(vts) {
         sliderAtts.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, pfx + "sus", envs[i].s));
         sliderAtts.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, pfx + "rel", envs[i].r));
         sliderAtts.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, pfx + "amt", envs[i].amt));
+        btnAtts.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(apvts, pfx + "bipolar", envs[i].bipBtn));
     }
 }
 
@@ -296,6 +304,7 @@ void ModEnvTab::resized() {
     for (int i = 0; i < 3; ++i) {
         int y = 30 + i * 130;
         envs[i].onBtn.setBounds(15, y + 15, 45, 24);
+        envs[i].bipBtn.setBounds(15, y + 45, 45, 24);
         placeKnob(75, y, envs[i].aL, envs[i].a); placeKnob(150, y, envs[i].dL, envs[i].d);
         placeKnob(225, y, envs[i].sL, envs[i].s); placeKnob(300, y, envs[i].rL, envs[i].r);
         placeKnob(385, y, envs[i].amtL, envs[i].amt);
@@ -880,16 +889,57 @@ void LiquidDreamAudioProcessorEditor::timerCallback() {
         colorPanel.updateState(state, text, blinkCounter < 10);
     }
 
-    float modDepths[23] = { 0.0f };
+    float modMinDepths[23] = { 0.0f };
+    float modMaxDepths[23] = { 0.0f };
+
     for (int slot = 0; slot < 10; ++slot) {
         int srcIdx = (int)apvts.getRawParameterValue("matrix_src_" + juce::String(slot))->load();
         int destIdx = (int)apvts.getRawParameterValue("matrix_dest_" + juce::String(slot))->load();
-        float amt = std::abs(apvts.getRawParameterValue("matrix_amt_" + juce::String(slot))->load());
-        if (srcIdx > 0 && destIdx > 0 && destIdx < 23) { modDepths[destIdx] += amt; }
+        float amt = apvts.getRawParameterValue("matrix_amt_" + juce::String(slot))->load();
+
+        if (srcIdx > 0 && destIdx > 0 && destIdx < 23) {
+            bool isBipolar = true;
+            if (srcIdx >= 1 && srcIdx <= 3) {
+                isBipolar = apvts.getRawParameterValue("mod" + juce::String(srcIdx) + "_bipolar")->load() > 0.5f;
+            }
+            else if (srcIdx >= 4 && srcIdx <= 6) {
+                isBipolar = apvts.getRawParameterValue("lfo" + juce::String(srcIdx - 3) + "_unipolar")->load() <= 0.5f;
+            }
+            else if (srcIdx >= 7 && srcIdx <= 8) {
+                isBipolar = apvts.getRawParameterValue("mseg" + juce::String(srcIdx - 6) + "_unipolar")->load() <= 0.5f;
+            }
+
+            float minDelta = 0.0f;
+            float maxDelta = 0.0f;
+
+            if (isBipolar) {
+                float absAmt = std::abs(amt);
+                minDelta = -absAmt;
+                maxDelta = absAmt;
+            }
+            else {
+                if (amt >= 0.0f) {
+                    minDelta = 0.0f;
+                    maxDelta = amt;
+                }
+                else {
+                    minDelta = amt;
+                    maxDelta = 0.0f;
+                }
+            }
+
+            modMinDepths[destIdx] += minDelta;
+            modMaxDepths[destIdx] += maxDelta;
+        }
     }
 
     bool isModulated = false;
-    for (int i = 1; i <= 8; ++i) { if (modDepths[i] > 0.001f) { isModulated = true; break; } }
+    for (int i = 1; i <= 8; ++i) {
+        if (modMaxDepths[i] - modMinDepths[i] > 0.001f) {
+            isModulated = true;
+            break;
+        }
+    }
 
     if (wtChanged || isModulated) {
         std::array<float, 512> tempBuffer;
@@ -898,12 +948,14 @@ void LiquidDreamAudioProcessorEditor::timerCallback() {
         wtChanged = false;
     }
 
-    auto updateRing = [](juce::Slider& s, float depth) {
-        bool changed = false; bool currentlyActive = s.getProperties().getWithDefault("mod_active", false); bool shouldBeActive = (depth > 0.001f);
+    auto updateRing = [](juce::Slider& s, float minDepth, float maxDepth) {
+        bool changed = false; bool currentlyActive = s.getProperties().getWithDefault("mod_active", false);
+        bool shouldBeActive = (maxDepth - minDepth > 0.001f);
         if (currentlyActive != shouldBeActive) changed = true;
         if (shouldBeActive) {
             auto range = s.getNormalisableRange(); float pNorm = range.convertTo0to1((float)s.getValue());
-            float newMin = juce::jlimit(0.0f, 1.0f, pNorm - depth); float newMax = juce::jlimit(0.0f, 1.0f, pNorm + depth);
+            float newMin = juce::jlimit(0.0f, 1.0f, pNorm + minDepth);
+            float newMax = juce::jlimit(0.0f, 1.0f, pNorm + maxDepth);
             float oldMin = s.getProperties().getWithDefault("mod_min", 0.0f); float oldMax = s.getProperties().getWithDefault("mod_max", 1.0f);
             if (std::abs(newMin - oldMin) > 0.001f || std::abs(newMax - oldMax) > 0.001f) {
                 s.getProperties().set("mod_min", newMin); s.getProperties().set("mod_max", newMax); changed = true;
@@ -914,16 +966,25 @@ void LiquidDreamAudioProcessorEditor::timerCallback() {
         if (changed) s.repaint();
         };
 
-    updateRing(wtPosSlider, modDepths[1]); updateRing(fmAmtSlider, modDepths[2]); updateRing(morphAAmtSlider, modDepths[3]); updateRing(morphAShiftSlider, modDepths[4]);
-    updateRing(morphBAmtSlider, modDepths[5]); updateRing(morphBShiftSlider, modDepths[6]); updateRing(morphCAmtSlider, modDepths[7]); updateRing(morphCShiftSlider, modDepths[8]);
-    updateRing(fltACutoffSlider, modDepths[9]); updateRing(fltAResSlider, modDepths[10]); updateRing(fltBCutoffSlider, modDepths[11]); updateRing(fltBResSlider, modDepths[12]);
-    updateRing(gainSlider, modDepths[13]);
+    updateRing(wtPosSlider, modMinDepths[1], modMaxDepths[1]);
+    updateRing(fmAmtSlider, modMinDepths[2], modMaxDepths[2]);
+    updateRing(morphAAmtSlider, modMinDepths[3], modMaxDepths[3]);
+    updateRing(morphAShiftSlider, modMinDepths[4], modMaxDepths[4]);
+    updateRing(morphBAmtSlider, modMinDepths[5], modMaxDepths[5]);
+    updateRing(morphBShiftSlider, modMinDepths[6], modMaxDepths[6]);
+    updateRing(morphCAmtSlider, modMinDepths[7], modMaxDepths[7]);
+    updateRing(morphCShiftSlider, modMinDepths[8], modMaxDepths[8]);
+    updateRing(fltACutoffSlider, modMinDepths[9], modMaxDepths[9]);
+    updateRing(fltAResSlider, modMinDepths[10], modMaxDepths[10]);
+    updateRing(fltBCutoffSlider, modMinDepths[11], modMaxDepths[11]);
+    updateRing(fltBResSlider, modMinDepths[12], modMaxDepths[12]);
+    updateRing(gainSlider, modMinDepths[13], modMaxDepths[13]);
 
-    updateRing(oscPitchSlider, modDepths[14]);
-    updateRing(distDriveSlider, modDepths[15]);
-    updateRing(shpAmtSlider, modDepths[16]);
-    updateRing(rateSlider, modDepths[17]);
-    updateRing(bitSlider, modDepths[18]);
+    updateRing(oscPitchSlider, modMinDepths[14], modMaxDepths[14]);
+    updateRing(distDriveSlider, modMinDepths[15], modMaxDepths[15]);
+    updateRing(shpAmtSlider, modMinDepths[16], modMaxDepths[16]);
+    updateRing(rateSlider, modMinDepths[17], modMaxDepths[17]);
+    updateRing(bitSlider, modMinDepths[18], modMaxDepths[18]);
 }
 
 void LiquidDreamAudioProcessorEditor::resized()

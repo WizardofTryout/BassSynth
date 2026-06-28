@@ -1,4 +1,4 @@
-﻿// ==============================================================================
+// ==============================================================================
 // Source/PluginProcessor.cpp
 // ==============================================================================
 #include "PluginProcessor.h"
@@ -52,12 +52,14 @@ LiquidDreamAudioProcessor::LiquidDreamAudioProcessor()
         pModAtk[i] = apvts.getRawParameterValue(ms + "atk"); pModDec[i] = apvts.getRawParameterValue(ms + "dec");
         pModSus[i] = apvts.getRawParameterValue(ms + "sus"); pModRel[i] = apvts.getRawParameterValue(ms + "rel");
         pModAmt[i] = apvts.getRawParameterValue(ms + "amt");
+        pModBipolar[i] = apvts.getRawParameterValue(ms + "bipolar");
 
         juce::String ls = "lfo" + juce::String(i + 1) + "_";
         pLfoOn[i] = apvts.getRawParameterValue(ls + "on");
         pLfoWave[i] = apvts.getRawParameterValue(ls + "wave"); pLfoSync[i] = apvts.getRawParameterValue(ls + "sync");
         pLfoRate[i] = apvts.getRawParameterValue(ls + "rate"); pLfoBeat[i] = apvts.getRawParameterValue(ls + "beat");
         pLfoAmt[i] = apvts.getRawParameterValue(ls + "amt"); pLfoTrig[i] = apvts.getRawParameterValue(ls + "trig");
+        pLfoUnipolar[i] = apvts.getRawParameterValue(ls + "unipolar");
     }
 
     for (int i = 0; i < 2; ++i) {
@@ -68,6 +70,7 @@ LiquidDreamAudioProcessor::LiquidDreamAudioProcessor()
         pMsegBeat[i] = apvts.getRawParameterValue(msegId + "beat");
         pMsegAmt[i] = apvts.getRawParameterValue(msegId + "amt");
         pMsegTrig[i] = apvts.getRawParameterValue(msegId + "trig");
+        pMsegUnipolar[i] = apvts.getRawParameterValue(msegId + "unipolar");
     }
 
     for (int i = 0; i < 10; ++i) {
@@ -201,6 +204,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout LiquidDreamAudioProcessor::c
         params.push_back(std::make_unique<juce::AudioParameterFloat>(pfx + "sus", nm + "Sus", 0.0f, 1.0f, 0.5f));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(pfx + "rel", nm + "Rel", attRange, 0.3f));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(pfx + "amt", nm + "Amt", 0.0f, 1.0f, 1.0f));
+        params.push_back(std::make_unique<juce::AudioParameterBool>(pfx + "bipolar", nm + "Bipolar", false));
     }
 
     auto lfoHzRange = juce::NormalisableRange<float>(0.01f, 50.0f, 0.01f, 0.3f);
@@ -214,6 +218,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout LiquidDreamAudioProcessor::c
         params.push_back(std::make_unique<juce::AudioParameterInt>(pfx + "beat", nm + "Beat", 0, 8, 2));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(pfx + "amt", nm + "Amt", 0.0f, 1.0f, 1.0f));
         params.push_back(std::make_unique<juce::AudioParameterInt>(pfx + "trig", nm + "Trig", 0, 2, 0));
+        params.push_back(std::make_unique<juce::AudioParameterBool>(pfx + "unipolar", nm + "Unipolar", false));
     }
 
     for (int i = 1; i <= 2; ++i) {
@@ -225,6 +230,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout LiquidDreamAudioProcessor::c
         params.push_back(std::make_unique<juce::AudioParameterInt>(pfx + "beat", nm + "Beat", 0, 8, 2));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(pfx + "amt", nm + "Amt", 0.0f, 1.0f, 1.0f));
         params.push_back(std::make_unique<juce::AudioParameterInt>(pfx + "trig", nm + "Trig", 0, 2, 0));
+        params.push_back(std::make_unique<juce::AudioParameterBool>(pfx + "unipolar", nm + "Unipolar", false));
     }
 
     for (int i = 0; i < 10; ++i) {
@@ -467,6 +473,7 @@ void LiquidDreamAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     oscillator.setOscOn(pOscOn->load(std::memory_order_relaxed) > 0.5f);
     oscillator.setSubOn(pSubOn->load(std::memory_order_relaxed) > 0.5f);
     oscillator.setSubWaveform((int)pSubWave->load(std::memory_order_relaxed));
+    oscillator.setSubPitchOffset(pSubPitch->load(std::memory_order_relaxed));
     oscillator.setUnisonCount((int)pUni->load(std::memory_order_relaxed));
     oscillator.setUnisonDetune(pDetune->load(std::memory_order_relaxed));
     oscillator.setFMWaveform((int)pFmWave->load(std::memory_order_relaxed));
@@ -508,14 +515,14 @@ void LiquidDreamAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
 
         float rawSources[9] = {
             0.0f,
-            (pModOn[0]->load(std::memory_order_relaxed) > 0.5f ? modEnvs[0].getNextSample() : 0.0f),
-            (pModOn[1]->load(std::memory_order_relaxed) > 0.5f ? modEnvs[1].getNextSample() : 0.0f),
-            (pModOn[2]->load(std::memory_order_relaxed) > 0.5f ? modEnvs[2].getNextSample() : 0.0f),
-            (pLfoOn[0]->load(std::memory_order_relaxed) > 0.5f ? lfos[0].getNextSample(currentBpm) : 0.0f),
-            (pLfoOn[1]->load(std::memory_order_relaxed) > 0.5f ? lfos[1].getNextSample(currentBpm) : 0.0f),
-            (pLfoOn[2]->load(std::memory_order_relaxed) > 0.5f ? lfos[2].getNextSample(currentBpm) : 0.0f),
-            (pMsegOn[0]->load(std::memory_order_relaxed) > 0.5f ? msegs[0].getNextSample(currentBpm) : 0.0f),
-            (pMsegOn[1]->load(std::memory_order_relaxed) > 0.5f ? msegs[1].getNextSample(currentBpm) : 0.0f)
+            (pModOn[0]->load(std::memory_order_relaxed) > 0.5f ? (pModBipolar[0]->load(std::memory_order_relaxed) > 0.5f ? modEnvs[0].getNextSample() * 2.0f - 1.0f : modEnvs[0].getNextSample()) : 0.0f),
+            (pModOn[1]->load(std::memory_order_relaxed) > 0.5f ? (pModBipolar[1]->load(std::memory_order_relaxed) > 0.5f ? modEnvs[1].getNextSample() * 2.0f - 1.0f : modEnvs[1].getNextSample()) : 0.0f),
+            (pModOn[2]->load(std::memory_order_relaxed) > 0.5f ? (pModBipolar[2]->load(std::memory_order_relaxed) > 0.5f ? modEnvs[2].getNextSample() * 2.0f - 1.0f : modEnvs[2].getNextSample()) : 0.0f),
+            (pLfoOn[0]->load(std::memory_order_relaxed) > 0.5f ? (pLfoUnipolar[0]->load(std::memory_order_relaxed) > 0.5f ? (lfos[0].getNextSample(currentBpm) + 1.0f) * 0.5f : lfos[0].getNextSample(currentBpm)) : 0.0f),
+            (pLfoOn[1]->load(std::memory_order_relaxed) > 0.5f ? (pLfoUnipolar[1]->load(std::memory_order_relaxed) > 0.5f ? (lfos[1].getNextSample(currentBpm) + 1.0f) * 0.5f : lfos[1].getNextSample(currentBpm)) : 0.0f),
+            (pLfoOn[2]->load(std::memory_order_relaxed) > 0.5f ? (pLfoUnipolar[2]->load(std::memory_order_relaxed) > 0.5f ? (lfos[2].getNextSample(currentBpm) + 1.0f) * 0.5f : lfos[2].getNextSample(currentBpm)) : 0.0f),
+            (pMsegOn[0]->load(std::memory_order_relaxed) > 0.5f ? (pMsegUnipolar[0]->load(std::memory_order_relaxed) > 0.5f ? (msegs[0].getNextSample(currentBpm) + 1.0f) * 0.5f : msegs[0].getNextSample(currentBpm)) : 0.0f),
+            (pMsegOn[1]->load(std::memory_order_relaxed) > 0.5f ? (pMsegUnipolar[1]->load(std::memory_order_relaxed) > 0.5f ? (msegs[1].getNextSample(currentBpm) + 1.0f) * 0.5f : msegs[1].getNextSample(currentBpm)) : 0.0f)
         };
 
         for (int s = 1; s < 9; ++s) {
