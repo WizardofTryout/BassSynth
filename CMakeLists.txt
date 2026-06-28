@@ -56,12 +56,14 @@ target_sources(BassSynth PRIVATE
     Source/UI/AbletonLookAndFeel.h
     Source/UI/WavetableBrowser.h
     Source/UI/DualScopeComponent.h
+    Source/UI/PresetBrowser.h
 
     # Logic Group
     Source/Logic/BassSynthVoice.h
     Source/Logic/PolyVoiceManager.h
     Source/Logic/AdsrEnvelope.h
     Source/Logic/FormulaParser.h
+    Source/Logic/FactoryPresets.h
  "Source/DSP/SpectralMorphProcessor.h" "Source/DSP/DualFilterEngine.h" "Source/DSP/MsegEngine.h" "Source/Logic/Mseg.h" "Source/DSP/ZeroLatencyLimiter.h")
 
 # 6. インクルードパス

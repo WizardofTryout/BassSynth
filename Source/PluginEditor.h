@@ -6,6 +6,7 @@
 #include "PluginProcessor.h"
 #include "UI/AbletonLookAndFeel.h"
 #include "UI/WavetableBrowser.h"
+#include "UI/PresetBrowser.h"
 
 class DualScopeComponent : public juce::Component, public juce::Timer
 {
@@ -212,7 +213,6 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
     void timerCallback() override;
-    void scanPresets();
 
 private:
     LiquidDreamAudioProcessor& audioProcessor;
@@ -287,9 +287,8 @@ private:
     juce::Slider maxVoicesSlider;
     juce::Label maxVoicesLabel;
 
-    juce::ComboBox presetCombo;
-    juce::TextButton savePresetBtn{ "Save" };
-    juce::Array<juce::File> presetFiles;
+    juce::TextButton presetBrowseBtn{ "Init" };
+    PresetBrowser presetBrowser;
 
     juce::TabbedComponent modTabs;
     LfoTab lfoTab;

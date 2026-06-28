@@ -3,6 +3,7 @@
 // ==============================================================================
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "Logic/FactoryPresets.h"
 
 static void setupS(juce::Slider& s, juce::Label& l, const char* txt, juce::Component* parent) {
     parent->addAndMakeVisible(s);
@@ -533,6 +534,7 @@ void ColorIrPanel::updateState(ColorIREngine::LearnState state, const juce::Stri
 LiquidDreamAudioProcessorEditor::LiquidDreamAudioProcessorEditor(LiquidDreamAudioProcessor& p)
     : AudioProcessorEditor(&p), audioProcessor(p),
     dualScope(p.getOutputScopePtr()), browser(p.getAPVTS()),
+    presetBrowser(juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile("BassSynthPresets")),
     colorPanel(p), modTabs(juce::TabbedButtonBar::TabsAtTop),
     lfoTab(p.getAPVTS()), msegTab(p, p.getAPVTS()), modEnvTab(p.getAPVTS()), matrixTab(p.getAPVTS())
 {
@@ -635,83 +637,110 @@ LiquidDreamAudioProcessorEditor::LiquidDreamAudioProcessorEditor(LiquidDreamAudi
     setupS(maxVoicesSlider, maxVoicesLabel, "Poly", this);
     addAndMakeVisible(legatoButton);
 
-    // ★ ここからプリセット部分 ★
-    addAndMakeVisible(presetCombo);
-    presetCombo.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(savePresetBtn);
-    savePresetBtn.setColour(juce::TextButton::buttonColourId, juce::Colour::fromString("FF2A2A2A"));
-
-    scanPresets();
-
-    // ★ 追加：名前から一致するIDを探してセットするヘルパー
-    auto syncPresetCombo = [this]() {
-        bool found = false;
-        for (int i = 0; i < presetCombo.getNumItems(); ++i) {
-            if (presetCombo.getItemText(i) == audioProcessor.lastSelectedPresetName) {
-                presetCombo.setSelectedId(presetCombo.getItemId(i), juce::dontSendNotification);
-                found = true; break;
-            }
-        }
-        if (!found) presetCombo.setSelectedId(1, juce::dontSendNotification);
-        };
-
-    syncPresetCombo(); // 開いた瞬間に反映させる
-
-    presetCombo.onChange = nullptr;
-    presetCombo.onChange = [this]() {
-        int id = presetCombo.getSelectedId();
-
-        // ★ 変更：選択された「名前」をプロセッサに記憶させる
-        audioProcessor.lastSelectedPresetName = presetCombo.getText();
-
-        if (id == 1) { // Init
-            for (auto* p : audioProcessor.getParameters()) {
-                if (auto* floatParam = dynamic_cast<juce::AudioProcessorParameterWithID*>(p)) {
-                    floatParam->setValueNotifyingHost(floatParam->getDefaultValue());
-                }
-            }
-            audioProcessor.loadFactoryWavetable(0);
-        }
-        else if (id > 1) {
-            int index = id - 2;
-            if (juce::isPositiveAndBelow(index, (int)presetFiles.size())) {
-                juce::MemoryBlock mb;
-                presetFiles[index].loadFileAsData(mb);
-                audioProcessor.setStateInformation(mb.getData(), (int)mb.getSize());
-
-                // ★ 読み込みによって名前がINITに上書きされるのを防ぐ
-                audioProcessor.lastSelectedPresetName = presetCombo.getText();
-            }
-        }
-        };
-
-    savePresetBtn.onClick = [this] {
-        auto presetDir = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile("BassSynthPresets");
-        if (!presetDir.exists()) presetDir.createDirectory();
-        auto chooser = std::make_shared<juce::FileChooser>("Save Preset", presetDir, "*.xml");
-        auto flags = juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles | juce::FileBrowserComponent::warnAboutOverwriting;
-
-        chooser->launchAsync(flags, [this, chooser](const juce::FileChooser& fc) {
-            auto file = fc.getResult();
-            if (file != juce::File{}) {
-                if (!file.hasFileExtension("xml")) file = file.withFileExtension("xml");
-                juce::MemoryBlock mb;
-                audioProcessor.getStateInformation(mb);
-                file.replaceWithData(mb.getData(), mb.getSize());
-
-                // 新しいプリセットをスキャンしてリストを更新
-                scanPresets();
-
-                // 保存したファイルを選択状態にする
-                for (int i = 0; i < (int)presetFiles.size(); ++i) {
-                    if (presetFiles[i] == file) {
-                        presetCombo.setSelectedId(i + 2, juce::sendNotification);
+    // ★ プリセットブラウザ機能の初期設定とバインディング ★
+    addAndMakeVisible(presetBrowseBtn);
+    presetBrowseBtn.setButtonText(audioProcessor.lastSelectedPresetName.isEmpty() ? "Init" : audioProcessor.lastSelectedPresetName);
+    presetBrowseBtn.onClick = [this] {
+        presetBrowser.setVisible(!presetBrowser.isVisible());
+        if (presetBrowser.isVisible())
+        {
+            presetBrowser.toFront(true);
+            juce::File presetDir = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile("BassSynthPresets");
+            juce::File currentFile = presetDir.getChildFile(audioProcessor.lastSelectedPresetName + ".xml");
+            if (currentFile.existsAsFile()) {
+                presetBrowser.setCurrentFile(currentFile);
+            } else {
+                auto list = FactoryPresets::getPresets();
+                bool isFactory = false;
+                for (int i = 0; i < list.size(); ++i) {
+                    if (list[i].name == audioProcessor.lastSelectedPresetName) {
+                        presetBrowser.setCurrentFactory(i);
+                        isFactory = true;
                         break;
                     }
                 }
+                if (!isFactory) {
+                    presetBrowser.setCurrentFile(juce::File());
+                }
             }
-            });
-        };
+        }
+    };
+
+    addChildComponent(presetBrowser);
+    presetBrowser.setVisible(false);
+
+    juce::Array<PresetBrowser::FactoryItem> factoryItems;
+    auto factoryList = FactoryPresets::getPresets();
+    for (int i = 0; i < factoryList.size(); ++i) {
+        PresetBrowser::FactoryItem item;
+        item.name = factoryList[i].name;
+        item.category = "Color Presets";
+        item.index = i;
+        factoryItems.add(item);
+    }
+    presetBrowser.setFactoryPresets(factoryItems);
+
+    presetBrowser.onClose = [this] {
+        presetBrowser.setVisible(false);
+    };
+
+    presetBrowser.onInit = [this] {
+        for (auto* p : audioProcessor.getParameters()) {
+            if (auto* floatParam = dynamic_cast<juce::AudioProcessorParameterWithID*>(p)) {
+                floatParam->setValueNotifyingHost(floatParam->getDefaultValue());
+            }
+        }
+        audioProcessor.loadFactoryWavetable(0);
+        audioProcessor.lastSelectedPresetName = "Init";
+        presetBrowseBtn.setButtonText("Init");
+        presetBrowser.setCurrentFile(juce::File());
+        audioProcessor.presetLoadedFlag.store(true);
+    };
+
+    presetBrowser.onLoad = [this](const juce::File& file) {
+        juce::MemoryBlock mb;
+        if (file.loadFileAsData(mb))
+        {
+            audioProcessor.setStateInformation(mb.getData(), (int)mb.getSize());
+            audioProcessor.lastSelectedPresetName = file.getFileNameWithoutExtension();
+            presetBrowseBtn.setButtonText(audioProcessor.lastSelectedPresetName);
+            presetBrowser.setCurrentFile(file);
+            audioProcessor.presetLoadedFlag.store(true);
+        }
+    };
+
+    presetBrowser.onLoadFactory = [this](int idx) {
+        auto list = FactoryPresets::getPresets();
+        if (idx >= 0 && idx < list.size())
+        {
+            auto& item = list.getReference(idx);
+            audioProcessor.setStateInformation(item.data, item.size);
+            audioProcessor.lastSelectedPresetName = item.name;
+            presetBrowseBtn.setButtonText(item.name);
+            presetBrowser.setCurrentFactory(idx);
+            audioProcessor.presetLoadedFlag.store(true);
+        }
+    };
+
+    presetBrowser.onSave = [this](const juce::String& name, const juce::String& subCat) {
+        auto presetDir = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile("BassSynthPresets");
+        if (!presetDir.exists()) presetDir.createDirectory();
+
+        juce::File targetDir = presetDir;
+        if (subCat.isNotEmpty() && subCat != "Uncategorized")
+            targetDir = presetDir.getChildFile(subCat);
+
+        if (!targetDir.exists()) targetDir.createDirectory();
+        juce::File targetFile = targetDir.getChildFile(name + ".xml");
+
+        juce::MemoryBlock mb;
+        audioProcessor.getStateInformation(mb);
+        targetFile.replaceWithData(mb.getData(), mb.getSize());
+
+        audioProcessor.lastSelectedPresetName = name;
+        presetBrowseBtn.setButtonText(name);
+        presetBrowser.setCurrentFile(targetFile);
+    };
 
     // APVTS アタッチメント
     auto& apvts = audioProcessor.getAPVTS();
@@ -817,21 +846,6 @@ void LiquidDreamAudioProcessorEditor::updateFilterUI() {
     }
 }
 
-void LiquidDreamAudioProcessorEditor::scanPresets() {
-    presetCombo.clear();
-    presetCombo.addItem("Init", 1);
-    auto presetDir = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile("BassSynthPresets");
-    if (!presetDir.exists()) presetDir.createDirectory();
-    presetFiles = presetDir.findChildFiles(juce::File::findFiles, false, "*.xml");
-    int id = 2;
-    for (auto& f : presetFiles) {
-        presetCombo.addItem(f.getFileNameWithoutExtension(), id++);
-    }
-
-    // ★ 修正箇所：初期化時にむやみに setSelectedId(1) を呼ばない
-    // これにより、起動時に強制的に INIT に戻されるのを防ぎます
-}
-
 void LiquidDreamAudioProcessorEditor::paint(juce::Graphics& g) { g.fillAll(juce::Colour::fromString("FF1E1E1E")); }
 
 void LiquidDreamAudioProcessorEditor::timerCallback() {
@@ -848,15 +862,7 @@ void LiquidDreamAudioProcessorEditor::timerCallback() {
             browser.onCustomFileSelected = [this](const juce::File& f) { audioProcessor.loadCustomWavetable(f); };
         }
 
-        // ★ 変更：DAWからロードされた「名前」を使ってコンボボックスを同期する
-        bool found = false;
-        for (int i = 0; i < presetCombo.getNumItems(); ++i) {
-            if (presetCombo.getItemText(i) == audioProcessor.lastSelectedPresetName) {
-                presetCombo.setSelectedId(presetCombo.getItemId(i), juce::dontSendNotification);
-                found = true; break;
-            }
-        }
-        if (!found) presetCombo.setSelectedId(1, juce::dontSendNotification);
+        presetBrowseBtn.setButtonText(audioProcessor.lastSelectedPresetName.isEmpty() ? "Init" : audioProcessor.lastSelectedPresetName);
     }
 
     if (audioProcessor.forceScopeUpdate.exchange(false)) {
@@ -1072,8 +1078,7 @@ void LiquidDreamAudioProcessorEditor::resized()
     placeKnob(aX + 15, aY, ampAtkLabel, ampAtkSlider); placeKnob(aX + 115, aY, ampDecLabel, ampDecSlider); placeKnob(aX + 215, aY, ampSusLabel, ampSusSlider); placeKnob(aX + 315, aY, ampRelLabel, ampRelSlider);
 
     auto presetRect = centerCol.removeFromBottom(40); int pX = presetRect.getX() + 10, pY = presetRect.getY() + 5;
-    presetCombo.setBounds(pX, pY, 290, 24);
-    savePresetBtn.setBounds(pX + 300, pY, 80, 24);
+    presetBrowseBtn.setBounds(pX, pY, 370, 24);
 
     auto filterRect = centerCol; filterGroup.setBounds(filterRect.reduced(0, 5)); int fX = filterRect.getX() + 10, fY = filterRect.getY() + 20;
     fltABtn.setBounds(fX, fY, 35, 24); fltBBtn.setBounds(fX + 35, fY, 35, 24); fltATypeCombo.setBounds(fX + 80, fY, 80, 24); fltBTypeCombo.setBounds(fX + 80, fY, 80, 24); fltRoutingCombo.setBounds(fX + 170, fY, 80, 24);
@@ -1087,4 +1092,6 @@ void LiquidDreamAudioProcessorEditor::resized()
     placeKnob(fX + spacing * 2, r3Y, fltASusLabel, fltASusSlider); placeKnob(fX + spacing * 2, r3Y, fltBSusLabel, fltBSusSlider);
     placeKnob(fX + spacing * 3, r3Y, fltARelLabel, fltARelSlider); placeKnob(fX + spacing * 3, r3Y, fltBRelLabel, fltBRelSlider);
     modTabs.setBounds(modCol);
+    
+    presetBrowser.setBounds(rightArea);
 }
