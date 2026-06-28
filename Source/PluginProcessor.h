@@ -46,13 +46,11 @@ public:
     void getStaticWaveform(std::array<float, 512>& buffer) {
         bool active = voiceManager.hasActiveVoices();
         float currentPos = active ? voiceManager.getLastModPos() : pPos->load(std::memory_order_relaxed);
-        voiceManager.setUIParams(currentPos, pFm->load(std::memory_order_relaxed), (int)pFmWave->load(std::memory_order_relaxed));
-        voiceManager.generateSingleCycle(buffer);
-        
+
         int mA = (int)pMorphAMode->load(std::memory_order_relaxed);
         int mB = (int)pMorphBMode->load(std::memory_order_relaxed);
         int mC = (int)pMorphCMode->load(std::memory_order_relaxed);
-        
+
         float aA, sA, aB, sB, aC, sC;
         if (active) {
             voiceManager.getMorphValues(aA, sA, aB, sB, aC, sC);
@@ -64,6 +62,17 @@ public:
             aC = pMorphCAmt->load(std::memory_order_relaxed);
             sC = pMorphCShift->load(std::memory_order_relaxed);
         }
+
+        voiceManager.setUIParams(currentPos, pFm->load(std::memory_order_relaxed), (int)pFmWave->load(std::memory_order_relaxed));
+
+        // ★ 修正: ノート非再生時は、表示用オシレーターへ現在のMorph値を先に反映してから波形を生成する。
+        //   これにより位相ワープ系Morph(mode1〜7)が、手動/LFOでノブを動かしただけでも表示に反映される。
+        //   (再生中はオーディオスレッドが毎サンプルMorphを更新済みなので上書きしない＝スレッド競合を回避)
+        if (!active)
+            voiceManager.setUIMorph(mA, aA, sA, mB, aB, sB, mC, aC, sC);
+
+        voiceManager.generateSingleCycle(buffer);
+
         displaySpectralMorph.processSingleCycleForDisplay(buffer, mA, aA, sA, mB, aB, sB, mC, aC, sC);
     }
 

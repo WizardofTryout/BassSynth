@@ -109,6 +109,11 @@ public:
         voices[0].setUIParams(pos, fmAmt, fmWave);
     }
 
+    // ★ 追加: 表示用(voices[0])オシレーターへMorphを反映
+    void setUIMorph(int mA, float aA, float sA, int mB, float aB, float sB, int mC, float aC, float sC) {
+        voices[0].setUIMorph(mA, aA, sA, mB, aB, sB, mC, aC, sC);
+    }
+
     float getLastModPos() const { return voices[0].getLastModPos(); }
 
     bool hasActiveVoices() const {

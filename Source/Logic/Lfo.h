@@ -22,7 +22,7 @@ public:
 
     // ★ 変更: trigMode を追加
     void setParameters(int wave, bool sync, float rate, int beat, float amt, int tMode) {
-        waveform = std::clamp(wave, 0, 3);
+        waveform = std::clamp(wave, 0, 4); // ★ 修正: Triangle(4) を有効化（従来は3でclampされRandomに化けていた）
         isSync = sync;
         rateHz = rate;
         beatIdx = beat;

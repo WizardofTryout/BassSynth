@@ -184,6 +184,13 @@ public:
         oscillator.setFMWaveform(fmWave);
     }
 
+    // ★ 追加: ノート非再生時に、表示用オシレーターへMorph(位相ワープ系 mode1〜7)を反映させる
+    void setUIMorph(int mA, float aA, float sA, int mB, float aB, float sB, int mC, float aC, float sC) {
+        oscillator.setMorphA(mA, aA, sA);
+        oscillator.setMorphB(mB, aB, sB);
+        oscillator.setMorphC(mC, aC, sC);
+    }
+
     float getLastModPos() const { return oscillator.getWavetablePosition(); }
     WavetableOscillator::WavetableSet::Ptr getWavetableSet() const { return oscillator.getWavetableSet(); }
     void setWavetableSet(WavetableOscillator::WavetableSet::Ptr newSet) { oscillator.setWavetableSet(newSet); }
