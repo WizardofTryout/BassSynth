@@ -51,6 +51,11 @@ public:
     }
 
     void noteOn(int noteNumber, float velocity, bool legatoEnabled) {
+        // ノートスタックの更新：すでにある場合は一度削除し、最新として末尾に追加
+        noteStack.erase(std::remove_if(noteStack.begin(), noteStack.end(),
+            [noteNumber](const KeyInfo& k) { return k.noteNumber == noteNumber; }), noteStack.end());
+        noteStack.push_back({ noteNumber, velocity });
+
         // すでに同じノートが鳴っているボイスがあればリリースに移行させる（多重発音防止）
         for (auto& voice : voices) {
             if (voice.getIsActive() && voice.getNoteNumber() == noteNumber) {
@@ -59,8 +64,8 @@ public:
         }
 
         // --- レガート制御 ---
-        // レガート有効（または発音数制限が1のモノフォニック時）で、すでにアクティブなボイスがあれば
-        if ((legatoEnabled || maxVoices == 1) && hasActiveVoices()) {
+        // UI側でレガート（legatoEnabled）が有効かつ、すでにアクティブなボイスがあれば
+        if (legatoEnabled && hasActiveVoices()) {
             int activeVoiceIdx = -1;
             uint32_t latestTime = 0;
             // 最も新しく発音されたアクティブなボイスを探す
@@ -103,7 +108,36 @@ public:
         }
     }
 
-    void noteOff(int noteNumber) {
+    void noteOff(int noteNumber, bool legatoEnabled) {
+        // ノートスタックから削除
+        noteStack.erase(std::remove_if(noteStack.begin(), noteStack.end(),
+            [noteNumber](const KeyInfo& k) { return k.noteNumber == noteNumber; }), noteStack.end());
+
+        // UI側でレガート（legatoEnabled）が有効な場合のみ復帰処理を行う
+        if (legatoEnabled) {
+            if (!noteStack.empty()) {
+                // まだキーが押されている場合、最後のキー（最新のキー）へ遷移させる
+                auto nextKey = noteStack.back();
+                
+                // 現在鳴っているアクティブなボイスを見つけ、そのボイスのピッチを移行
+                int activeVoiceIdx = -1;
+                uint32_t latestTime = 0;
+                for (int i = 0; i < maxVoices; ++i) {
+                    if (voices[i].getIsActive() && voices[i].getOnTime() > latestTime) {
+                        latestTime = voices[i].getOnTime();
+                        activeVoiceIdx = i;
+                    }
+                }
+
+                if (activeVoiceIdx != -1) {
+                    voices[activeVoiceIdx].noteOn(nextKey.noteNumber, nextKey.velocity, true);
+                }
+                return;
+            }
+        }
+
+        // スタックが空になった場合、またはレガート無効の通常ポリフォニック時：
+        // 該当ノートを鳴らしているボイスをノートオフにする
         for (auto& voice : voices) {
             if (voice.getIsActive() && voice.getNoteNumber() == noteNumber) {
                 voice.noteOff(false);
@@ -157,6 +191,12 @@ public:
     }
 
 private:
+    struct KeyInfo {
+        int noteNumber;
+        float velocity;
+    };
+    std::vector<KeyInfo> noteStack;
+
     std::array<BassSynthVoice, 32> voices;
     int maxVoices = 12;
 };

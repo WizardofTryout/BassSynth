@@ -478,7 +478,7 @@ void LiquidDreamAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
                 std::lock_guard<std::mutex> lock(midiNotesMutex);
                 activeMidiNotes.erase(std::remove(activeMidiNotes.begin(), activeMidiNotes.end(), msg.getNoteNumber()), activeMidiNotes.end());
             }
-            voiceManager.noteOff(msg.getNoteNumber());
+            voiceManager.noteOff(msg.getNoteNumber(), pLegato->load(std::memory_order_relaxed) > 0.5f);
         }
     }
 
