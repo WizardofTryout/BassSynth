@@ -111,6 +111,13 @@ public:
 
     float getLastModPos() const { return voices[0].getLastModPos(); }
 
+    bool hasActiveVoices() const {
+        for (const auto& voice : voices) {
+            if (voice.getIsActive()) return true;
+        }
+        return false;
+    }
+
     void getMorphValues(float& aA, float& sA, float& aB, float& sB, float& aC, float& sC) const {
         voices[0].getMorphValues(aA, sA, aB, sB, aC, sC);
     }

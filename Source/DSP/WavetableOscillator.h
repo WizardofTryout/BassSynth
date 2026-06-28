@@ -254,6 +254,7 @@ public:
     float getMorphBShift() const { return morphBShift; }
     float getMorphCAmount() const { return morphCAmount; }
     float getMorphCShift() const { return morphCShift; }
+    float getFMAmount() const { return fmAmount; }
     void setFMAmount(float amt) { fmAmount = amt; }
     void setFMWaveform(int shape) { fmWaveform = juce::jlimit(0, 3, shape); }
     void setDriftAmount(float amt) { driftAmount = amt; }
