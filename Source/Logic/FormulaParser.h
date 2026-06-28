@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cctype>
 #include <stdexcept>
+#include <random>
 
 class FormulaParser {
 public:
@@ -196,11 +197,18 @@ private:
                 if (name == "max" && args.size() >= 2) return std::max(args[0], args[1]);
                 if (name == "min" && args.size() >= 2) return std::min(args[0], args[1]);
                 if (name == "pow" && args.size() >= 2) return std::pow(args[0], args[1]);
-                if (name == "mod" && args.size() >= 2) return (args[1] == 0.0) ? 0.0 : std::fmod(args[0], args[1]);
+                if (name == "mod" && args.size() >= 2) {
+                    double a = args[0];
+                    double b = args[1];
+                    if (b == 0.0) return 0.0;
+                    double r = std::fmod(a, b);
+                    return (r < 0.0) ? (r + std::abs(b)) : r;
+                }
                 if (name == "rnd" && args.size() >= 1) {
-                    double seed = args[0];
-                    double noise = std::sin(seed * 12.9898) * 43758.5453;
-                    return (noise - std::floor(noise)) * seed;
+                    static std::random_device rd;
+                    static std::mt19937 gen(rd());
+                    static std::uniform_real_distribution<double> dis(0.0, 1.0);
+                    return dis(gen) * args[0];
                 }
             }
             throw std::runtime_error("Unknown function or token: " + name);

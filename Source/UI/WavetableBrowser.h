@@ -123,11 +123,13 @@ public:
             return;
         }
 
-        tempFile = juce::File::createTempFile("bs_formula");
-        if (tempFile.deleteFile())
-        {
-            std::unique_ptr<juce::FileOutputStream> outStream(tempFile.createOutputStream());
-            if (outStream != nullptr)
+        juce::File tempDir = juce::File::getSpecialLocation(juce::File::tempDirectory);
+        tempFile = tempDir.getChildFile("bs_formula_temp_" + juce::String(juce::Random::getSystemRandom().nextInt()) + ".wav");
+        if (tempFile.existsAsFile())
+            tempFile.deleteFile();
+
+        std::unique_ptr<juce::FileOutputStream> outStream(tempFile.createOutputStream());
+        if (outStream != nullptr)
             {
                 juce::WavAudioFormat wavFormat;
                 std::unique_ptr<juce::AudioFormatWriter> writer(wavFormat.createWriterFor(outStream.get(), 44100.0, 1, 24, {}, 0));
@@ -146,7 +148,6 @@ public:
                         onFileGenerated(tempFile);
                     return;
                 }
-            }
         }
 
         statusLabel.setColour(juce::Label::textColourId, juce::Colours::red);
