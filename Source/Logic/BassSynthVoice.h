@@ -36,6 +36,7 @@ struct VoiceParams {
     std::atomic<float>* pSubVol = nullptr;
     std::atomic<float>* pSubPitch = nullptr;
     std::atomic<float>* pMasterPitch = nullptr; // ★①マスターピッチ(半音)
+    std::atomic<float>* pVelSens = nullptr;      // ★Velocity感度(0=無効, 1=フル)
 
     std::atomic<float>* pFltAType = nullptr;
     std::atomic<float>* pFltACutoff = nullptr;
@@ -348,6 +349,8 @@ public:
         int   fltBType_   = (int)p.pFltBType->load(std::memory_order_relaxed);
         int   fltRouting_ = (int)p.pFltRouting->load(std::memory_order_relaxed);
         float masterPitchMult_ = std::exp2(p.pMasterPitch->load(std::memory_order_relaxed) * 0.0833333f); // ★①マスターピッチ(半音→周波数倍率)
+        // ★Velocity感度: sens=0で常にフル音量、sens=1で音量がVelocityに比例
+        float velGain_ = 1.0f - p.pVelSens->load(std::memory_order_relaxed) * (1.0f - currentVelocity);
 
         // サンプル処理ループ
         for (int i = 0; i < numSamples; ++i) {
@@ -505,9 +508,9 @@ public:
 
             dualFilter.processStereo(sL, sR);
 
-            // ボイス出力を加算ミックス
-            outL[i] += sL * aVal;
-            outR[i] += sR * aVal;
+            // ボイス出力を加算ミックス（★Velocity感度を適用）
+            outL[i] += sL * aVal * velGain_;
+            outR[i] += sR * aVal * velGain_;
         }
 
         // エンベロープが完全にリリースし切ったら非アクティブ化

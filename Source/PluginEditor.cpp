@@ -753,6 +753,7 @@ LiquidDreamAudioProcessorEditor::LiquidDreamAudioProcessorEditor(LiquidDreamAudi
 
     setupS(glideSlider, glideLabel, "Glide", this); setupS(pitchSlider, pitchLabel, "Pitch", this); setupS(gainSlider, gainLabel, "Gain", this);
     setupS(maxVoicesSlider, maxVoicesLabel, "Poly", this);
+    setupS(velSensSlider, velSensLabel, "Vel.Sens", this); // ★Velocity感度
     addAndMakeVisible(legatoButton);
 
     // ★ プリセットブラウザ機能の初期設定とバインディング ★
@@ -906,6 +907,7 @@ LiquidDreamAudioProcessorEditor::LiquidDreamAudioProcessorEditor(LiquidDreamAudi
 
     att(glideSlider, "m_glide"); att(pitchSlider, "m_pitch"); att(gainSlider, "m_gain"); // ★①PitchをマスターピッチへリアタッチTask
     attachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(apvts, "max_voices", maxVoicesSlider));
+    att(velSensSlider, "m_velsens"); // ★Velocity感度
 
     // タブ・コンポーネントの設定
     addAndMakeVisible(modTabs);
@@ -1140,6 +1142,7 @@ void LiquidDreamAudioProcessorEditor::resized()
     pitchSlider.setVisible(!isColorPanelVisible); pitchLabel.setVisible(!isColorPanelVisible);
     gainSlider.setVisible(!isColorPanelVisible); gainLabel.setVisible(!isColorPanelVisible);
     maxVoicesSlider.setVisible(!isColorPanelVisible); maxVoicesLabel.setVisible(!isColorPanelVisible);
+    velSensSlider.setVisible(!isColorPanelVisible); velSensLabel.setVisible(!isColorPanelVisible);
 
     subOnButton.setVisible(!isColorPanelVisible);
     subWaveCombo.setVisible(!isColorPanelVisible);
@@ -1169,10 +1172,11 @@ void LiquidDreamAudioProcessorEditor::resized()
         placeKnob(cX + 155, r1Y, subVolLabel, subVolSlider);
         placeKnob(cX + 235, r1Y, subPitchLabel, subPitchSlider);
 
-        // 2段目: Gain, Pitch, Poly
-        placeKnob(cX + 15, r2Y, gainLabel, gainSlider);
-        placeKnob(cX + 115, r2Y, pitchLabel, pitchSlider);
-        placeKnob(cX + 215, r2Y, maxVoicesLabel, maxVoicesSlider);
+        // 2段目: Gain, Pitch, Poly, Vel.Sens（間隔を詰めて4つ並べる）
+        placeKnob(cX + 5, r2Y, gainLabel, gainSlider);
+        placeKnob(cX + 90, r2Y, pitchLabel, pitchSlider);
+        placeKnob(cX + 175, r2Y, maxVoicesLabel, maxVoicesSlider);
+        placeKnob(cX + 260, r2Y, velSensLabel, velSensSlider);
 
         // 3段目: Legato, Glide, Limit, Ceiling
         legatoButton.setBounds(cX, r3Y + 20, 65, 24);

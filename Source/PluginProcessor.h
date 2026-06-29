@@ -153,6 +153,7 @@ private:
     std::atomic<float>* pDrive = nullptr; std::atomic<float>* pShpAmt = nullptr; std::atomic<float>* pShpRate = nullptr; std::atomic<float>* pShpBit = nullptr;
     std::atomic<float>* pGain = nullptr; std::atomic<float>* pGlide = nullptr; std::atomic<float>* pLegato = nullptr;
     std::atomic<float>* pMasterPitch = nullptr; // ★①マスターピッチ
+    std::atomic<float>* pVelSens = nullptr;      // ★Velocity感度
     std::atomic<float>* pAAtk = nullptr; std::atomic<float>* pADec = nullptr; std::atomic<float>* pASus = nullptr; std::atomic<float>* pARel = nullptr;
     std::atomic<float>* pFAtkA = nullptr; std::atomic<float>* pFDecA = nullptr; std::atomic<float>* pFSusA = nullptr; std::atomic<float>* pFRelA = nullptr;
     std::atomic<float>* pFAtkB = nullptr; std::atomic<float>* pFDecB = nullptr; std::atomic<float>* pFSusB = nullptr; std::atomic<float>* pFRelB = nullptr;

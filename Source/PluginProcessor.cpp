@@ -28,6 +28,7 @@ LiquidDreamAudioProcessor::LiquidDreamAudioProcessor()
     pDrive = apvts.getRawParameterValue("dist_drive"); pShpAmt = apvts.getRawParameterValue("shp_amt"); pShpRate = apvts.getRawParameterValue("shp_rate"); pShpBit = apvts.getRawParameterValue("shp_bit");
     pGain = apvts.getRawParameterValue("m_gain"); pGlide = apvts.getRawParameterValue("m_glide"); pLegato = apvts.getRawParameterValue("m_legato");
     pMasterPitch = apvts.getRawParameterValue("m_pitch"); // ★①マスターピッチ
+    pVelSens = apvts.getRawParameterValue("m_velsens");   // ★Velocity感度
 
     // ★④ FX パラメータ
     pChoOn = apvts.getRawParameterValue("fx_cho_on"); pChoMix = apvts.getRawParameterValue("fx_cho_mix"); pChoDepth = apvts.getRawParameterValue("fx_cho_depth"); pChoSpeed = apvts.getRawParameterValue("fx_cho_speed");
@@ -97,6 +98,7 @@ LiquidDreamAudioProcessor::LiquidDreamAudioProcessor()
     vp.pUni = pUni; vp.pDetune = pDetune; vp.pWidth = pWidth; vp.pDrift = pDrift;
     vp.pSubOn = pSubOn; vp.pSubWave = pSubWave; vp.pSubVol = pSubVol; vp.pSubPitch = pSubPitch;
     vp.pMasterPitch = pMasterPitch; // ★①マスターピッチ
+    vp.pVelSens = pVelSens;         // ★Velocity感度
     vp.pFltAType = pFltAType; vp.pFltACutoff = pFltACutoff; vp.pFltAReso = pFltAReso;
     vp.pFltBType = pFltBType; vp.pFltBCutoff = pFltBCutoff; vp.pFltBReso = pFltBReso;
     vp.pFltRouting = pFltRouting; vp.pFltMix = pFltMix; vp.pFltAEnvAmt = pFltAEnvAmt; vp.pFltBEnvAmt = pFltBEnvAmt;
@@ -198,6 +200,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout LiquidDreamAudioProcessor::c
     params.push_back(std::make_unique<juce::AudioParameterBool>("m_legato", "Legato", false));
     params.push_back(std::make_unique<juce::AudioParameterInt>("m_pb", "PB Range", 0, 24, 12));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("m_pitch", "Master Pitch", -12.0f, 12.0f, 0.0f)); // ★①マスターピッチ
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("m_velsens", "Vel Sens", 0.0f, 1.0f, 0.5f)); // ★Velocity感度
 
     // ★④ FX (Chorus / Delay / Reverb) ※デフォルトは全てOFF/Mix0で既存プリセットに影響しない
     params.push_back(std::make_unique<juce::AudioParameterBool>("fx_cho_on", "Chorus On", false));

@@ -326,6 +326,9 @@ private:
     juce::Slider maxVoicesSlider;
     juce::Label maxVoicesLabel;
 
+    juce::Slider velSensSlider; // ★Velocity感度
+    juce::Label  velSensLabel;
+
     juce::TextButton presetBrowseBtn{ "Init" };
     PresetBrowser presetBrowser;
 
