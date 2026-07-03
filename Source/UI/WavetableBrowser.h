@@ -289,7 +289,6 @@ public:
 
         if (selCat == "Factory") {
             subCategories.add("Basic");
-            subCategories.add("Embedded");
         }
         else if (selCat == "Favorite") {
             subCategories.add("All");
@@ -338,8 +337,7 @@ public:
                 for (int i = 0; i < 10; ++i) {
                     if (matchSearch(names[i])) currentList.add({ true, i, juce::File(), names[i], false, "" });
                 }
-            }
-            if (selSub == "All" || selSub == "Embedded") {
+
                 const char* embedNames[] = {
                     "Circle_VPS.wav", "Deep_Saw.wav", "Digital_Bell_03.wav", "Dist_Tube.wav",
                     "Electric_Guitar.wav", "Growl_11.wav", "Growl_We_Wow.wav", "Saw_Collection.wav",
@@ -419,7 +417,9 @@ public:
         }
         else if (item.isEmbedded) {
             currentFactoryIndex = -1;
-            currentCustomFile = juce::File("embedded://" + item.embeddedName);
+            currentCustomFile = juce::File::getCurrentWorkingDirectory()
+                                    .getChildFile("embedded_wavetables")
+                                    .getChildFile(item.embeddedName);
             if (onCustomFileSelected) onCustomFileSelected(currentCustomFile);
         }
         else {
@@ -557,7 +557,7 @@ private:
         int currentListIdx = 0;
         for (int i = 0; i < currentList.size(); ++i) {
             if (currentList[i].isFactory && currentList[i].factoryIndex == currentFactoryIndex) { currentListIdx = i; break; }
-            if (currentList[i].isEmbedded && currentCustomFile.getFullPathName() == "embedded://" + currentList[i].embeddedName) { currentListIdx = i; break; }
+            if (currentList[i].isEmbedded && currentCustomFile.getParentDirectory().getFileName() == "embedded_wavetables" && currentCustomFile.getFileName() == currentList[i].embeddedName) { currentListIdx = i; break; }
             if (!currentList[i].isFactory && !currentList[i].isEmbedded && currentList[i].file == currentCustomFile) { currentListIdx = i; break; }
         }
         int nextIdx = (currentListIdx + delta + currentList.size()) % currentList.size();
@@ -613,7 +613,7 @@ private:
             bool isActive = false;
             if (item.isFactory && item.factoryIndex == owner->currentFactoryIndex) isActive = true;
             if (!item.isFactory && !item.isEmbedded && item.file == owner->currentCustomFile) isActive = true;
-            if (item.isEmbedded && owner->currentCustomFile.getFullPathName() == "embedded://" + item.embeddedName) isActive = true;
+            if (item.isEmbedded && owner->currentCustomFile.getParentDirectory().getFileName() == "embedded_wavetables" && owner->currentCustomFile.getFileName() == item.embeddedName) isActive = true;
 
             if (isActive) g.fillAll(juce::Colour::fromString("FF6A6A6A"));
 

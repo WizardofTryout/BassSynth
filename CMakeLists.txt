@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(BassSynth VERSION 1.0.0 LANGUAGES C CXX)
+project(BassSynth VERSION 1.2.0 LANGUAGES C CXX)
 
 # VST3の互換エラー回避
 set(JUCE_VST3_AUTO_MANIFEST OFF)
@@ -28,7 +28,7 @@ juce_add_plugin(BassSynth
     PLUGIN_MANUFACTURER_CODE "Otdk"
     PLUGIN_CODE "Bsyn"
     FORMATS VST3 Standalone
-    PRODUCT_NAME "BassSynth"
+    PRODUCT_NAME "BassSynth1.2.0"
     CHANNEL_CONFIGS 0,2
 )
 
@@ -110,6 +110,10 @@ juce_add_binary_data(BassSynthWavetables
 )
 
 juce_generate_juce_header(BassSynth)
+
+if(MSVC)
+    target_compile_options(BassSynthWavetables PRIVATE /Od)
+endif()
 
 if(WIN32)
     target_compile_definitions(BassSynth PRIVATE JUCE_DIRECT2D=1)

@@ -140,7 +140,7 @@ LiquidDreamAudioProcessor::LiquidDreamAudioProcessor()
 
     // グローバル設定からのフォルダ復元
     juce::PropertiesFile::Options options;
-    options.applicationName = "BassSynth";
+    options.applicationName = "BassSynth1.2.0";
     options.filenameSuffix = ".settings";
     options.osxLibrarySubFolder = "Application Support";
     options.folderName = "LiquidDreamAudio";
@@ -411,12 +411,11 @@ void LiquidDreamAudioProcessor::setStateInformation(const void* data, int sizeIn
 }
 
 void LiquidDreamAudioProcessor::loadCustomWavetable(const juce::File& file) {
-    juce::String path = file.getFullPathName();
-    if (path.startsWith("embedded://")) {
-        loadEmbeddedWavetable(path.substring(11));
+    if (file.getParentDirectory().getFileName() == "embedded_wavetables") {
+        loadEmbeddedWavetable(file.getFileName());
         return;
     }
-    currentCustomWavetablePath = path;
+    currentCustomWavetablePath = file.getFullPathName();
     customWavetableLoaded.store(true);
     voiceManager.loadCustomWavetable(file);
     forceScopeUpdate.store(true);
@@ -461,7 +460,7 @@ void LiquidDreamAudioProcessor::setUserFolders(const juce::StringArray& folders)
     userWavetableFolders = folders;
 
     juce::PropertiesFile::Options options;
-    options.applicationName = "BassSynth";
+    options.applicationName = "BassSynth1.2.0";
     options.filenameSuffix = ".settings";
     options.osxLibrarySubFolder = "Application Support";
     options.folderName = "LiquidDreamAudio";
