@@ -48,7 +48,6 @@ public:
 
     void getStaticWaveform(std::array<float, 512>& buffer) {
         bool active = voiceManager.hasActiveVoices();
-        float currentPos = active ? voiceManager.getLastModPos() : pPos->load(std::memory_order_relaxed);
 
         int mA = (int)pMorphAMode->load(std::memory_order_relaxed);
         int mB = (int)pMorphBMode->load(std::memory_order_relaxed);
@@ -58,21 +57,17 @@ public:
         if (active) {
             voiceManager.getMorphValues(aA, sA, aB, sB, aC, sC);
         } else {
+            float currentPos = pPos->load(std::memory_order_relaxed);
             aA = pMorphAAmt->load(std::memory_order_relaxed);
             sA = pMorphAShift->load(std::memory_order_relaxed);
             aB = pMorphBAmt->load(std::memory_order_relaxed);
             sB = pMorphBShift->load(std::memory_order_relaxed);
             aC = pMorphCAmt->load(std::memory_order_relaxed);
             sC = pMorphCShift->load(std::memory_order_relaxed);
-        }
 
-        voiceManager.setUIParams(currentPos, pFm->load(std::memory_order_relaxed), (int)pFmWave->load(std::memory_order_relaxed), pFmRatio->load(std::memory_order_relaxed));
-
-        // ★ 修正: ノート非再生時は、表示用オシレーターへ現在のMorph値を先に反映してから波形を生成する。
-        //   これにより位相ワープ系Morph(mode1〜7)が、手動/LFOでノブを動かしただけでも表示に反映される。
-        //   (再生中はオーディオスレッドが毎サンプルMorphを更新済みなので上書きしない＝スレッド競合を回避)
-        if (!active)
+            voiceManager.setUIParams(currentPos, pFm->load(std::memory_order_relaxed), (int)pFmWave->load(std::memory_order_relaxed), pFmRatio->load(std::memory_order_relaxed));
             voiceManager.setUIMorph(mA, aA, sA, mB, aB, sB, mC, aC, sC);
+        }
 
         voiceManager.generateSingleCycle(buffer);
 
@@ -87,6 +82,7 @@ public:
     }
 
     void loadCustomWavetable(const juce::File& file);
+    void loadEmbeddedWavetable(const juce::String& name);
     void loadFactoryWavetable(int index);
 
     void setUserFolders(const juce::StringArray& folders);

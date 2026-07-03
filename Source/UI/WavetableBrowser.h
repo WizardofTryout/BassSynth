@@ -289,6 +289,7 @@ public:
 
         if (selCat == "Factory") {
             subCategories.add("Basic");
+            subCategories.add("Embedded");
         }
         else if (selCat == "Favorite") {
             subCategories.add("All");
@@ -335,7 +336,33 @@ public:
             if (selSub == "All" || selSub == "Basic") {
                 const char* names[] = { "Basic Morph", "PWM Sweep", "Sync Sweep", "Harmonic Build", "FM Sweep", "Saw Sync", "Vowel Sweep", "Sub Fade", "Metallic Sweep", "Noise Fade" };
                 for (int i = 0; i < 10; ++i) {
-                    if (matchSearch(names[i])) currentList.add({ true, i, juce::File(), names[i] });
+                    if (matchSearch(names[i])) currentList.add({ true, i, juce::File(), names[i], false, "" });
+                }
+            }
+            if (selSub == "All" || selSub == "Embedded") {
+                const char* embedNames[] = {
+                    "Circle_VPS.wav", "Deep_Saw.wav", "Digital_Bell_03.wav", "Dist_Tube.wav",
+                    "Electric_Guitar.wav", "Growl_11.wav", "Growl_We_Wow.wav", "Saw_Collection.wav",
+                    "Shaper_Wave6.wav", "Square_Saw_I.wav", "Vocal_AhWoYeYo.wav", "Vocal_Ahhh_01.wav",
+                    "Vocal_Ayee_Ahh_02.wav"
+                };
+                const char* dispNames[] = {
+                    "Circle VPS", "Deep Saw", "Digital Bell 03", "Dist Tube",
+                    "Electric Guitar", "Growl 11", "Growl We Wow", "Saw Collection",
+                    "Shaper Wave6", "Square Saw I", "Vocal AhWoYeYo", "Vocal Ahhh 01",
+                    "Vocal Ayee Ahh 02"
+                };
+                for (int i = 0; i < 13; ++i) {
+                    if (matchSearch(dispNames[i])) {
+                        ListItem item;
+                        item.isFactory = false;
+                        item.factoryIndex = -1;
+                        item.file = juce::File();
+                        item.name = dispNames[i];
+                        item.isEmbedded = true;
+                        item.embeddedName = embedNames[i];
+                        currentList.add(item);
+                    }
                 }
             }
             };
@@ -389,6 +416,11 @@ public:
                 param->setValueNotifyingHost(param->getNormalisableRange().convertTo0to1((float)item.factoryIndex));
 
             if (onFactoryIndexSelected) onFactoryIndexSelected(item.factoryIndex);
+        }
+        else if (item.isEmbedded) {
+            currentFactoryIndex = -1;
+            currentCustomFile = juce::File("embedded://" + item.embeddedName);
+            if (onCustomFileSelected) onCustomFileSelected(currentCustomFile);
         }
         else {
             currentFactoryIndex = -1;
@@ -469,6 +501,8 @@ private:
         int factoryIndex;
         juce::File file;
         juce::String name;
+        bool isEmbedded = false;
+        juce::String embeddedName;
     };
     juce::Array<ListItem> currentList;
 
@@ -523,7 +557,8 @@ private:
         int currentListIdx = 0;
         for (int i = 0; i < currentList.size(); ++i) {
             if (currentList[i].isFactory && currentList[i].factoryIndex == currentFactoryIndex) { currentListIdx = i; break; }
-            if (!currentList[i].isFactory && currentList[i].file == currentCustomFile) { currentListIdx = i; break; }
+            if (currentList[i].isEmbedded && currentCustomFile.getFullPathName() == "embedded://" + currentList[i].embeddedName) { currentListIdx = i; break; }
+            if (!currentList[i].isFactory && !currentList[i].isEmbedded && currentList[i].file == currentCustomFile) { currentListIdx = i; break; }
         }
         int nextIdx = (currentListIdx + delta + currentList.size()) % currentList.size();
         applySelection(nextIdx);
@@ -577,11 +612,13 @@ private:
 
             bool isActive = false;
             if (item.isFactory && item.factoryIndex == owner->currentFactoryIndex) isActive = true;
-            if (!item.isFactory && item.file == owner->currentCustomFile) isActive = true;
+            if (!item.isFactory && !item.isEmbedded && item.file == owner->currentCustomFile) isActive = true;
+            if (item.isEmbedded && owner->currentCustomFile.getFullPathName() == "embedded://" + item.embeddedName) isActive = true;
 
             if (isActive) g.fillAll(juce::Colour::fromString("FF6A6A6A"));
 
-            juce::String favId = item.isFactory ? "Factory::" + juce::String(item.factoryIndex) : item.file.getFullPathName();
+            juce::String favId = item.isFactory ? "Factory::" + juce::String(item.factoryIndex) : 
+                                (item.isEmbedded ? "embedded://" + item.embeddedName : item.file.getFullPathName());
             bool isFav = owner->favoritePaths.contains(favId);
 
             g.setColour(isFav ? juce::Colour::fromString("FFFFD700") : juce::Colours::darkgrey);
@@ -596,7 +633,8 @@ private:
             if (!owner) return;
             if (e.x < 35) {
                 auto& item = owner->currentList.getReference(row);
-                juce::String favId = item.isFactory ? "Factory::" + juce::String(item.factoryIndex) : item.file.getFullPathName();
+                juce::String favId = item.isFactory ? "Factory::" + juce::String(item.factoryIndex) : 
+                                    (item.isEmbedded ? "embedded://" + item.embeddedName : item.file.getFullPathName());
                 if (owner->favoritePaths.contains(favId)) owner->favoritePaths.removeString(favId);
                 else owner->favoritePaths.add(favId);
 

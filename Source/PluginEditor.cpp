@@ -874,7 +874,7 @@ LiquidDreamAudioProcessorEditor::LiquidDreamAudioProcessorEditor(LiquidDreamAudi
     for (int i = 0; i < factoryList.size(); ++i) {
         PresetBrowser::FactoryItem item;
         item.name = factoryList[i].name;
-        item.category = "Color Presets";
+        item.category = factoryList[i].category;
         item.index = i;
         factoryItems.add(item);
     }
@@ -914,7 +914,7 @@ LiquidDreamAudioProcessorEditor::LiquidDreamAudioProcessorEditor(LiquidDreamAudi
         if (idx >= 0 && idx < list.size())
         {
             auto& item = list.getReference(idx);
-            audioProcessor.setStateInformation(item.data, item.size);
+            audioProcessor.setStateInformation(item.xmlText, (int)std::strlen(item.xmlText));
             audioProcessor.lastSelectedPresetName = item.name;
             presetBrowseBtn.setButtonText(item.name);
             presetBrowser.setCurrentFactory(idx);

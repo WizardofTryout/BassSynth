@@ -152,6 +152,10 @@ public:
         oscillator.loadCustomWavetableFile(file);
     }
 
+    void loadEmbeddedWavetable(const void* data, size_t size) {
+        oscillator.loadEmbeddedWavetableData(data, size);
+    }
+
     void noteOn(int noteNumber, float velocity, bool isLegato) {
         bool wasActive = isActive;
         currentNoteNumber = noteNumber;

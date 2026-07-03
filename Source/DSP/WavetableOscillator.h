@@ -153,6 +153,31 @@ public:
         runBandlimitingTask(myJobId, newSet, tempRaw);
     }
 
+    void loadEmbeddedWavetableData(const void* data, size_t size) {
+        const int myJobId = ++loadJobId;
+        if (data == nullptr || size == 0) return;
+
+        auto stream = std::make_unique<juce::MemoryInputStream>(data, size, false);
+        juce::WavAudioFormat wavFormat;
+        std::unique_ptr<juce::AudioFormatReader> reader(wavFormat.createReaderFor(stream.release(), true));
+        if (reader == nullptr) return;
+
+        WavetableSet::Ptr newSet = new WavetableSet();
+        juce::AudioBuffer<float> tempRaw(1, (int)reader->lengthInSamples);
+        reader->read(&tempRaw, 0, (int)reader->lengthInSamples, 0, true, false);
+
+        newSet->totalSamples = tempRaw.getNumSamples();
+        newSet->frameSize = (newSet->totalSamples >= 2048) ? 2048 : newSet->totalSamples;
+        newSet->numFrames = std::max(1, newSet->totalSamples / newSet->frameSize);
+
+        for (int lvl = 0; lvl < NumLevels; ++lvl) {
+            newSet->levels[lvl].setSize(1, newSet->totalSamples);
+            newSet->levels[lvl].makeCopyOf(tempRaw);
+        }
+        currentWavetableSet = newSet;
+        runBandlimitingTask(myJobId, newSet, tempRaw);
+    }
+
     void runBandlimitingTask(int myJobId, WavetableSet::Ptr newSet, juce::AudioBuffer<float> tempRaw) {
         backgroundPool.removeAllJobs(true, 10); // ★ 古い処理の確実なキャンセル
         backgroundPool.addJob([this, myJobId, newSet, tempRaw]() { // ★ 専用プールを利用

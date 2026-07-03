@@ -88,9 +88,27 @@ target_link_libraries(BassSynth PRIVATE
     juce::juce_graphics
     juce::juce_core        
     juce::juce_events      
+    BassSynthWavetables
 )
 
 # 8. JUCE 8 固有の設定
+juce_add_binary_data(BassSynthWavetables
+    SOURCES
+        Assets/Wavetables_Factory/Circle_VPS.wav
+        Assets/Wavetables_Factory/Shaper_Wave6.wav
+        Assets/Wavetables_Factory/Growl_We_Wow.wav
+        Assets/Wavetables_Factory/Vocal_AhWoYeYo.wav
+        Assets/Wavetables_Factory/Vocal_Ahhh_01.wav
+        Assets/Wavetables_Factory/Vocal_Ayee_Ahh_02.wav
+        Assets/Wavetables_Factory/Growl_11.wav
+        Assets/Wavetables_Factory/Square_Saw_I.wav
+        Assets/Wavetables_Factory/Dist_Tube.wav
+        Assets/Wavetables_Factory/Digital_Bell_03.wav
+        Assets/Wavetables_Factory/Electric_Guitar.wav
+        Assets/Wavetables_Factory/Deep_Saw.wav
+        Assets/Wavetables_Factory/Saw_Collection.wav
+)
+
 juce_generate_juce_header(BassSynth)
 
 if(WIN32)

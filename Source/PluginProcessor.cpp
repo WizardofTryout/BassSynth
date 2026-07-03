@@ -356,15 +356,25 @@ void LiquidDreamAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 
 void LiquidDreamAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
-    std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
+    std::unique_ptr<juce::XmlElement> xmlState;
+    if (sizeInBytes > 5 && (std::strncmp((const char*)data, "<?xml", 5) == 0 || std::strncmp((const char*)data, "<PARAMS", 7) == 0)) {
+        xmlState = juce::XmlDocument::parse(juce::String::createStringFromData(data, sizeInBytes));
+    } else {
+        xmlState = std::unique_ptr<juce::XmlElement>(getXmlFromBinary(data, sizeInBytes));
+    }
+
     if (xmlState != nullptr) {
         if (xmlState->hasTagName(apvts.state.getType())) {
             apvts.replaceState(juce::ValueTree::fromXml(*xmlState));
         }
 
         juce::String customPath = xmlState->getStringAttribute("CustomWavePath", "");
-        if (customPath.isNotEmpty() && juce::File(customPath).existsAsFile()) {
-            loadCustomWavetable(juce::File(customPath));
+        if (customPath.isNotEmpty()) {
+            if (customPath.startsWith("embedded://")) {
+                loadEmbeddedWavetable(customPath.substring(11));
+            } else if (juce::File(customPath).existsAsFile()) {
+                loadCustomWavetable(juce::File(customPath));
+            }
         }
 
         juce::String ms0 = xmlState->getStringAttribute("mseg0_data", "");
@@ -401,9 +411,41 @@ void LiquidDreamAudioProcessor::setStateInformation(const void* data, int sizeIn
 }
 
 void LiquidDreamAudioProcessor::loadCustomWavetable(const juce::File& file) {
-    currentCustomWavetablePath = file.getFullPathName();
+    juce::String path = file.getFullPathName();
+    if (path.startsWith("embedded://")) {
+        loadEmbeddedWavetable(path.substring(11));
+        return;
+    }
+    currentCustomWavetablePath = path;
     customWavetableLoaded.store(true);
     voiceManager.loadCustomWavetable(file);
+    forceScopeUpdate.store(true);
+}
+
+void LiquidDreamAudioProcessor::loadEmbeddedWavetable(const juce::String& name) {
+    currentCustomWavetablePath = "embedded://" + name;
+    customWavetableLoaded.store(true);
+
+    const void* resData = nullptr;
+    int resSize = 0;
+
+    if (name == "Circle_VPS.wav") { resData = BinaryData::Circle_VPS_wav; resSize = BinaryData::Circle_VPS_wavSize; }
+    else if (name == "Shaper_Wave6.wav") { resData = BinaryData::Shaper_Wave6_wav; resSize = BinaryData::Shaper_Wave6_wavSize; }
+    else if (name == "Growl_We_Wow.wav") { resData = BinaryData::Growl_We_Wow_wav; resSize = BinaryData::Growl_We_Wow_wavSize; }
+    else if (name == "Vocal_AhWoYeYo.wav") { resData = BinaryData::Vocal_AhWoYeYo_wav; resSize = BinaryData::Vocal_AhWoYeYo_wavSize; }
+    else if (name == "Vocal_Ahhh_01.wav") { resData = BinaryData::Vocal_Ahhh_01_wav; resSize = BinaryData::Vocal_Ahhh_01_wavSize; }
+    else if (name == "Vocal_Ayee_Ahh_02.wav") { resData = BinaryData::Vocal_Ayee_Ahh_02_wav; resSize = BinaryData::Vocal_Ayee_Ahh_02_wavSize; }
+    else if (name == "Growl_11.wav") { resData = BinaryData::Growl_11_wav; resSize = BinaryData::Growl_11_wavSize; }
+    else if (name == "Square_Saw_I.wav") { resData = BinaryData::Square_Saw_I_wav; resSize = BinaryData::Square_Saw_I_wavSize; }
+    else if (name == "Dist_Tube.wav") { resData = BinaryData::Dist_Tube_wav; resSize = BinaryData::Dist_Tube_wavSize; }
+    else if (name == "Digital_Bell_03.wav") { resData = BinaryData::Digital_Bell_03_wav; resSize = BinaryData::Digital_Bell_03_wavSize; }
+    else if (name == "Electric_Guitar.wav") { resData = BinaryData::Electric_Guitar_wav; resSize = BinaryData::Electric_Guitar_wavSize; }
+    else if (name == "Deep_Saw.wav") { resData = BinaryData::Deep_Saw_wav; resSize = BinaryData::Deep_Saw_wavSize; }
+    else if (name == "Saw_Collection.wav") { resData = BinaryData::Saw_Collection_wav; resSize = BinaryData::Saw_Collection_wavSize; }
+
+    if (resData != nullptr && resSize > 0) {
+        voiceManager.loadEmbeddedWavetable(resData, resSize);
+    }
     forceScopeUpdate.store(true);
 }
 

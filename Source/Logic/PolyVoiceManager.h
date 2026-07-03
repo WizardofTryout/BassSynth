@@ -44,6 +44,15 @@ public:
         }
     }
 
+    void loadEmbeddedWavetable(const void* data, size_t size) {
+        if (voices.size() == 0) return;
+        voices[0].loadEmbeddedWavetable(data, size);
+        auto sharedSet = voices[0].getWavetableSet();
+        for (size_t i = 1; i < voices.size(); ++i) {
+            voices[i].setWavetableSet(sharedSet);
+        }
+    }
+
     void updateMsegStates(const MsegState& state0, const MsegState& state1) {
         for (auto& voice : voices) {
             voice.updateMsegStates(state0, state1);
@@ -168,17 +177,50 @@ public:
         voices[0].setUIMorph(mA, aA, sA, mB, aB, sB, mC, aC, sC);
     }
 
-    float getLastModPos() const { return voices[0].getLastModPos(); }
+    const BassSynthVoice* getLatestActiveVoice() const {
+        const BassSynthVoice* latestVoice = nullptr;
+        uint32_t latestTime = 0;
+        for (int i = 0; i < maxVoices; ++i) {
+            if (voices[i].getIsActive() && voices[i].getOnTime() > latestTime) {
+                latestTime = voices[i].getOnTime();
+                latestVoice = &voices[i];
+            }
+        }
+        return latestVoice;
+    }
+
+    BassSynthVoice* getLatestActiveVoice() {
+        BassSynthVoice* latestVoice = nullptr;
+        uint32_t latestTime = 0;
+        for (int i = 0; i < maxVoices; ++i) {
+            if (voices[i].getIsActive() && voices[i].getOnTime() > latestTime) {
+                latestTime = voices[i].getOnTime();
+                latestVoice = &voices[i];
+            }
+        }
+        return latestVoice;
+    }
+
+    float getLastModPos() const {
+        if (auto* v = getLatestActiveVoice()) {
+            return v->getLastModPos();
+        }
+        return voices[0].getLastModPos();
+    }
 
     bool hasActiveVoices() const {
-        for (const auto& voice : voices) {
-            if (voice.getIsActive()) return true;
+        for (int i = 0; i < maxVoices; ++i) {
+            if (voices[i].getIsActive()) return true;
         }
         return false;
     }
 
     void getMorphValues(float& aA, float& sA, float& aB, float& sB, float& aC, float& sC) const {
-        voices[0].getMorphValues(aA, sA, aB, sB, aC, sC);
+        if (auto* v = getLatestActiveVoice()) {
+            v->getMorphValues(aA, sA, aB, sB, aC, sC);
+        } else {
+            voices[0].getMorphValues(aA, sA, aB, sB, aC, sC);
+        }
     }
 
     Mseg& getMsegEngine(int index) {
@@ -186,8 +228,11 @@ public:
     }
 
     void generateSingleCycle(std::array<float, 512>& buffer) {
-        // 表示用のシングルサイクル波形は、最初のボイスのオシレーターから取得します
-        voices[0].generateSingleCycle(buffer);
+        if (auto* v = getLatestActiveVoice()) {
+            v->generateSingleCycle(buffer);
+        } else {
+            voices[0].generateSingleCycle(buffer);
+        }
     }
 
 private:
