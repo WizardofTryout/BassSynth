@@ -9,20 +9,10 @@
 👉 **[Watch the Demo Video on X (動作デモ動画)](https://x.com/kijyoumusic/status/2047948478392021324?s=20)**
 
 ---
-## 🚀 What's New in V1.2.0 (主な新機能)近日中にリリース予定！！
+## 🚀 What's New in V1.2.0 はリリースを見送りました！！（ゴメンナサイ）
+当初、Ver1.2.0のリリースを予定しておりましたが、あまりに大規模なUPDATEとなったため、新たなプラグイン「Wavetable」として開発に集中することにしました。今後は、BassSynthの後継として「Wavetable」をご期待ください。
+リリース時期につきましては、公式サイトにてお知らせします。
 
-- **🎹 Polyphony Support (ポリフォニック化)**: Rebuilt the voice engine from monophonic to polyphonic, supporting up to **24 voices** for rich chords and pads. Includes a dedicated GUI slider to adjust the max voice count dynamically.
-- **⚡ Advanced Modulation Matrix Sources (マトリクス変調ソースの拡張)**: Extended the modulation matrix with 3 powerful performance-oriented sources:
-  - **Velocity (打鍵速度)**: Use note velocity as a modulator.
-  - **Vel > N (Velocity閾値ゲート)**: Generates a ramp modulation value only when note velocity exceeds a configurable threshold `N` (1-127).
-  - **Trig.Ran (トリガーランダム)**: Generates a unique random value per note on every trigger event.
-- **⚙️ Modulator Config Panel (モジュレータ・コンフィグ搭載)**: Added dedicated options for the new performance sources, including **Smoothing Times** (adjustable lag from `0.5ms` to `200ms` to prevent clicks) and **Polarity Switch** (switchable between Unipolar and Bipolar mode).
-- **🧪 Formula-Based Wavetable Generation (数式生成)**: Integrated a math formula editor panel to generate custom wavetable shapes using mathematical equations (e.g., Sine, Cos) in real-time. Wavetables can be exported as `.wav` or previewed instantly.
-- **🌀 New FX Suite & Routing (空間系エフェクト＆順序入れ替え)**: Integrated high-quality **Dimension Chorus**, **Stereo Delay**, and **Diffusion Cloud Reverb (Simple Reverb)**. Features a dynamic routing editor where you can drag and swap the FX chain order (Slot 1, 2, 3) on the fly.
-- **✨ Enhanced Modulators (LFOのTriangle波追加＆One-Shotモード)**: Added **Triangle LFO** shape (making 5 total shapes: Sine, Saw, Pulse, Random, Triangle) and extended trigger options with **One-Shot** mode (stopping after 1 cycle) alongside Free and Retrig.
-- **📦 Hardcoded Factory Assets (バイナリ埋め込み)**: Embedded **29 factory presets** and **13 custom wavetables** directly into the plugin binary, eliminating external path dependencies for portability and speed.
-- **🗃️ Wavetable Browser Integration (波形ブラウザ統合)**: Integrated the 13 built-in custom wavetables directly inside the `Factory -> Basic` tab in the browser for easy navigation and favoriting (★).
-- **⚡ Real-Time Render Optimization (描画ラグの解消)**: Refactored the UI waveform render logic to bind parameters to the latest active voice. This resolves lag on the display and prevents thread contention.
 
 ---
 
